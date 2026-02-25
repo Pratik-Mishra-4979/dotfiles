@@ -41,7 +41,6 @@
   - [[#xah-fly-keys][Xah Fly Keys]]
   - [[#xref][Xref]]
   - [[#zooming-inout][Zooming In/Out]]
-  - [[#spacious-padding][Spacious-Padding]]
 
 *  early-init.el
 ** Make Frame Invisible
@@ -1073,81 +1072,5 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 Few more things to add: Treemacs, vterm, magit, git timemachine, server mode , perspective and beframe.(email client)
 After everything is done integrate with modeline. That should be it.
 
-** Spacious-Padding
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package spacious-padding :ensure t 
-  :init 
-        (setq spacious-padding-widths
-          `( :internal-border-width 8
-             :header-line-width 2
-             :mode-line-width 2
-             :tab-width 2
-             :right-divider-width 8
-             :scroll-bar-width ,(if x-toolkit-scroll-bars 8 6)
-             :left-fringe-width 8
-             :right-fringe-width 8))
-        
-        (setq spacious-padding-subtle-mode-line
-          '( :mode-line-active spacious-padding-subtle-mode-line-active
-             :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
-)
-
-(defvar pratik/gui-frame-count 0)
-
-(defun pratik/spacious-padding-enable-for-frame (frame)
-  (when (display-graphic-p frame)
-    (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
-    (with-selected-frame frame
-      (run-with-idle-timer
-       0 nil
-       (lambda ()
-         (require 'spacious-padding)
-         (unless (bound-and-true-p spacious-padding-mode)
-           (spacious-padding-mode 1)))))))
-
-(defun pratik/spacious-padding-disable-for-frame (frame)
-  (when (display-graphic-p frame)
-    (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
-    (when (= pratik/gui-frame-count 0)
-      (when (bound-and-true-p spacious-padding-mode)
-        (spacious-padding-mode -1)))))
-
-(if (daemonp)
-    (progn
-      (add-hook 'after-make-frame-functions
-                #'pratik/spacious-padding-enable-for-frame)
-      (add-hook 'delete-frame-functions
-                #'pratik/spacious-padding-disable-for-frame))
-  (add-hook 'emacs-startup-hook
-            (lambda ()
-              (setq pratik/gui-frame-count 1)
-              (require 'spacious-padding)
-              (spacious-padding-mode 1))))
-#+end_src
-
-*** emms-modeline custom
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (defun my/emms-track-description-short (track)
-;;   "Return a shortened description for the EMMS mode-line."
-;;   (let ((title (emms-track-get track 'info-title)))
-;;     (if title
-;;         (let ((short-title (truncate-string-to-width title 30 nil nil "..")))
-;;           short-title)
-;;       (emms-track-simple-description track))))
-
-;; (setq emms-mode-line-mode-line-function #'my/emms-track-description-short)
-#+end_src
-
-*** spacious-padding integration
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(with-eval-after-load 'spacious-padding
-  (defun pratik-modeline-spacious-indicators ()
-    "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
-      (if (bound-and-true-p spacious-padding-mode)
-          (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
-        (set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
-
-(add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
-#+end_src
 
 
