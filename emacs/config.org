@@ -1,0 +1,1153 @@
+#+TITLE:Pratik's GNU Emacs Config
+#+AUTHOR: Pratik Mishra
+#+DESCRIPTION: Pratik's personal Emacs config.
+#+STARTUP: showeverything
+#+OPTIONS: toc:2
+
+* Table of Contents :toc:
+-  [[#early-initel][early-init.el]]
+  - [[#make-frame-invisible][Make Frame Invisible]]
+  - [[#elpaca-package-setup][Elpaca package setup]]
+  - [[#garbage-collection-threshold-increase][Garbage collection threshold increase]]
+  - [[#language-environment][Language Environment]]
+  - [[#performance-boost][Performance boost]]
+  - [[#transparency][Transparency]]
+-  [[#initel][init.el]]
+  - [[#important-programs-to-load-first][IMPORTANT PROGRAMS TO LOAD FIRST]]
+  - [[#all-the-icons][All the icons.]]
+  - [[#calendar][Calendar]]
+  - [[#corfu][Corfu]]
+  - [[#dashboard][Dashboard]]
+  - [[#denote][Denote]]
+  - [[#dont-clutter][Don't clutter]]
+  - [[#eglot][Eglot]]
+  - [[#electric-mode][Electric Mode]]
+  - [[#elfeed][Elfeed]]
+  - [[#embark][Embark]]
+  - [[#flymake][Flymake]]
+  - [[#flyspell][Flyspell]]
+  - [[#font][Font]]
+  - [[#git-bash-utls][Git bash utls]]
+  - [[#magit][Magit]]
+  - [[#modeline][Modeline]]
+  - [[#org-mode][Org Mode]]
+  - [[#python-mode][Python-Mode]]
+  - [[#shell][Shell]]
+  - [[#themes][Themes]]
+  - [[#visual-upgrades][Visual Upgrades]]
+  - [[#vertico--orderless--marginilia--wgrep-setup][Vertico + orderless + marginilia + wgrep setup]]
+  - [[#which-key][Which Key]]
+  - [[#whitespace-cleanup][Whitespace-cleanup]]
+  - [[#xah-fly-keys][Xah Fly Keys]]
+  - [[#xref][Xref]]
+  - [[#zooming-inout][Zooming In/Out]]
+  - [[#spacious-padding][Spacious-Padding]]
+
+*  early-init.el
+** Make Frame Invisible
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(setq frame-inhibit-implied-resize t)
+(push '(visibility . nil) default-frame-alist)
+#+end_src
+
+** Elpaca package setup
+NOTE: Elapaca requires symlink (enabled it duing GIT installation.)
+Lazy loading packages.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(setq package-enable-at-startup nil)
+(setq package-quickstart t) ;; combines all packages into a single package.
+#+end_src
+
+** Garbage collection threshold increase
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(setq gc-cons-threshold 100000000)
+(setq gc-cons-percentage 0.6)
+#+end_src
+
+** Language Environment
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(set-language-environment "UTF-8")
+(setq default-input-method nil) ;; not required
+#+end_src
+
+** Performance boost
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(menu-bar-mode -1)           ;; Disable the menu bar 
+(tool-bar-mode -1)           ;; Disable the tool bar
+;;(global-display-line-numbers-mode 1) ;; Display line numbers
+(blink-cursor-mode -1) ;; disable blinking cursor
+(global-visual-line-mode t)  ;; Enable truncated lines
+(setq frame-title-format "") ;; Disable the title in emacs frame.
+(setq help-window-select t) ;; always select the help window
+
+;; Disable GUIs because they are inconsistent across systems, desktop environments, and themes, and they don't match the look of Emacs.
+(setq use-file-dialog nil)
+(setq use-dialog-box nil)
+
+;; Increase how much is read from processes in a single chunk
+(setq read-process-output-max (* 2 1024 1024))  ; 1024kb
+(setq process-adaptive-read-buffering nil)
+
+(setq ffap-machine-p-known 'reject);; Don't ping things that look like domain names.
+
+;; Reduce *Message* noise at startup. An empty scratch buffer (or thedashboard) is more than enough, and faster to display.
+  (setq inhibit-startup-screen t
+        inhibit-startup-echo-area-message user-login-name)
+  (setq initial-buffer-choice nil
+        inhibit-startup-buffer-menu t
+        inhibit-x-resources t)
+
+(setq inhibit-compacting-font-caches t) ;; Font compacting is useless unless you use multiple languages.
+
+;; Disable bidirectional text scanning for a modest performance boost.
+(setq-default bidi-display-reordering 'left-to-right
+                bidi-paragraph-direction 'left-to-right)
+
+(setq bidi-inhibit-bpa t) ;; Give up some bidirectional functionality for slightly faster re-display.
+
+(setq inhibit-splash-screen t) ;; Disable startup screens and messages
+ (advice-add 'display-startup-echo-area-message :override #'ignore) ;; Remove "For information about GNU Emacs..." message at startup
+ (advice-add 'display-startup-screen :override #'ignore)  ;; Suppress the vanilla startup screen completely. We've disabled it with`inhibit-startup-screen', but it would still initialize anyway.
+#+end_src
+
+** Transparency
+Enabling Transparency
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+;;(add-to-list 'default-frame-alist '(alpha . 95)) 
+#+end_src
+
+*  init.el
+** IMPORTANT PROGRAMS TO LOAD FIRST
+*** Adding the scripts directory to path
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
+#+end_src
+
+*** Adding user-name and email-address
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq user-full-name "Pratik Mishra"
+      user-mail-address "pratikmishra4979@gmail.com")
+#+end_src
+
+*** Setting the default-directory
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq default-directory "~/")
+#+end_src
+
+*** Sourcing the scripts
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+  (require 'elpaca-setup);; The elpaca package manager
+  (require 'pratik-mode) ;; Pratik modes setup
+  (require 'buffer-move)   ;; Buffer-move for better window management
+#+end_src
+
+*** Garbage collection reset and threshold increase
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-hook 'elpaca-after-init-hook (lambda () (setq gc-cons-threshold 20000000) 
+				(setq gc-cons-percentage 0.1)))
+#+end_src
+
+*** Make the frame visible
+This makes sure the frame is made visible after dashboard is open.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t))) 
+#+end_src
+
+*** Benchmarking Tools
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package esup :ensure t
+  :config (setq esup-depth 0))
+(use-package benchmark-init :ensure t ;; :demand t when you need to benchmark
+  :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
+#+end_src
+
+** All the icons.
+This is an icon set that can be used with dashboard, dired, ibuffer and other Emacs programs.
+  
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+  (use-package nerd-icons :ensure t :demand t
+    :custom
+    (nerd-icons-font-family "AporeticSansMonoNerdFont"))
+
+  (use-package nerd-icons-dired :ensure t
+    :after nerd-icons
+    :hook (dired-mode . nerd-icons-dired-mode))
+
+  ;; all the icons completion adds icons to mini buffers.
+
+  (use-package nerd-icons-completion :ensure t
+    :after (marginalia nerd-icons)
+    :hook (marginalia-mode . #'nerd-icons-completion-marginalia-setup)
+    :init
+    (nerd-icons-completion-mode 1))
+#+end_src
+
+** Calendar
+install calfw and make it sync with google calendar. set it up when requried.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package calfw :ensure t)
+#+end_src
+
+** Corfu
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package corfu
+  :ensure t
+  :hook ((python-mode . corfu-mode)
+         (emacs-lisp-mode . corfu-mode))
+  :custom
+  (corfu-auto t)                ; Enable automatic completion
+  (corfu-cycle t)               ; Enable cycling through completions
+  (corfu-echo-documentation t)  ; Show documentation on the completion
+  (corfu-min-width 20)          ; Minimum width for completion popup
+  :bind
+  (:map corfu-map
+        ("TAB" . corfu-next)     ; TAB for next completion
+        ("S-TAB" . corfu-previous) ; Shift-TAB for previous completion
+        ("RET" . corfu-send)    ; RET for selection
+        ("C-n" . corfu-next)      ; Move down the completions list
+        ("C-p" . corfu-previous))) ; Move up the completions list
+#+end_src
+
+** Dashboard
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(with-current-buffer (get-buffer-create "*scratch*")
+  (insert
+   (format ";;
+;; ███████╗███╗   ███╗ █████╗  ██████╗███████╗
+;; ██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝ 
+;; █████╗  ██╔████╔██║███████║██║     ███████╗
+;; ██╔══╝  ██║╚██╔╝██║██╔══██║██║     ╚════██║
+;; ███████╗██║ ╚═╝ ██║██║  ██║╚██████╗███████║
+;; ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
+;;
+;;   Loading time : %s
+;;   Packages     : loading...
+;;
+"
+           (emacs-init-time))))
+
+(add-hook
+ 'elpaca-after-init-hook
+ (lambda ()
+   (with-current-buffer "*scratch*"
+     (save-excursion
+       (goto-char (point-min))
+       (re-search-forward "Packages     : .*")
+       (replace-match
+        (format "Packages     : %s"
+                (cdr (assq 'finished elpaca--status-counts)))))
+     (goto-char (point-max))))) 
+
+(message (emacs-init-time))
+#+end_src
+
+** Denote
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package denote
+  :ensure t
+  :hook (dired-mode . denote-dired-mode)
+  :bind (("C-c n n" . denote)
+         ("C-c n r" . denote-rename-file)
+	 ("C-c n l" . denote-link)
+	 ("C-c n b" . denote-backlinks)
+	 ("C-c n d" . denote-dired)
+	 ("C-c n g" . denote-grep))
+  :config (setq denote-directory (expand-file-name "~/notes/"))
+  (denote-rename-buffer-mode 1)
+  (setq denote-dired-directories-include-subdirectories t))
+#+end_src
+
+*** Denote-org
+Adds the feature to make subtree a new file, and add files contents using a dynamic block.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package denote-org
+  :ensure t
+  :commands
+  ;; I list the commands here so that you can discover them more
+  ;; easily.  You might want to bind the most frequently used ones to
+  ;; the `org-mode-map'.
+  ( denote-org-link-to-heading
+    denote-org-backlinks-for-heading
+
+    denote-org-extract-org-subtree
+
+    denote-org-convert-links-to-file-type
+    denote-org-convert-links-to-denote-type
+
+    denote-org-dblock-insert-files
+    denote-org-dblock-insert-links
+    denote-org-dblock-insert-backlinks
+    denote-org-dblock-insert-missing-links
+    denote-org-dblock-insert-files-as-headings))
+#+end_src
+
+*** Denote Sequence
+adds the ability to sequence the notes.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package denote-sequence
+  :ensure t
+  :bind
+  ( :map global-map
+    ;; Here we make "C-c n s" a prefix for all "[n]otes with [s]equence".
+    ;; This is just for demonstration purposes: use the key bindings
+    ;; that work for you.  Also check the commands:
+    ;;
+    ;; - `denote-sequence-new-parent'
+    ;; - `denote-sequence-new-sibling'
+    ;; - `denote-sequence-new-child'
+    ;; - `denote-sequence-new-child-of-current'
+    ;; - `denote-sequence-new-sibling-of-current'
+    ("C-c n s s" . denote-sequence)
+    ("C-c n s f" . denote-sequence-find)
+    ("C-c n s l" . denote-sequence-link)
+    ("C-c n s d" . denote-sequence-dired)
+    ("C-c n s r" . denote-sequence-reparent)
+    ("C-c n s c" . denote-sequence-convert))
+  :config
+  ;; The default sequence scheme is `numeric'.
+  (setq denote-sequence-scheme 'alphanumeric))
+#+end_src
+
+*** Denote Consult
+adds integration of consult and denote.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package consult-denote
+  :ensure t
+  :bind
+  (("C-c n f" . consult-denote-find)
+   ("C-c n g" . consult-denote-grep))
+  :config
+  (consult-denote-mode 1))
+#+end_src
+
+** Don't clutter 
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
+(setq auto-save-file-name-transforms '((".*" "~/.emacs.d/backups/" t)))
+#+end_src
+
+** Eglot
+Eglot (built-in client for the language server protocol)
+ #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package eglot
+  :ensure nil
+  :hook (python-mode . eglot-ensure)
+  :config
+  (setq eglot-server-programs '((python-mode . ("pyright-langserver" "--stdio"))))
+  (setq eglot-sync-connect nil)
+  (setq eglot-autoshutdown t))
+ #+end_src
+
+** Electric Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package electric
+  :ensure nil
+  :hook
+  (prog-mode . electric-indent-local-mode)
+  :config
+  (electric-pair-mode 1)
+  (electric-quote-mode -1)
+  (electric-indent-mode -1))    ;; Turn off the weird indenting that Emacs does by default.
+
+;; The following prevents <> from auto-pairing when electric-pair-mode is on.(useful for org tempo)
+(add-hook 'org-mode-hook (lambda ()
+           (setq-local electric-pair-inhibit-predicate
+                   `(lambda (c)
+                  (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+#+end_src
+
+** Elfeed
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package elfeed :ensure t
+  :init
+        (setq elfeed-enclosure-default-dir "~/Downloads/")
+        (setq elfeed-show-entry-switch 'switch-to-buffer)
+	(setq shr-max-image-proportion 0.6)
+	(setq elfeed-search-filter "@2-weeks-ago +unread")
+	(setq elfeed-search-title-max-width 100)
+	(setq elfeed-search-title-min-width 30)
+	(setq elfeed-search-trailing-width 25)
+	(setq elfeed-show-unique-buffers nil)
+  :config
+        (setq elfeed-feeds (quote 
+		    (
+		     ("https://frontline.thehindu.com/feeder/default.rss" TheHindu)
+		     ("https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting" ET TaxLegAcc)
+		     ("https://cfo.economictimes.indiatimes.com/rss/corporate-finance" ET CF)
+		     ("https://cfo.economictimes.indiatimes.com/rss/esg" ET ESG)
+		     ("https://cfo.economictimes.indiatimes.com/rss/strategy-operations" ET StratOper)
+		     ("https://cfo.economictimes.indiatimes.com/rss/policy" ET policy)
+		     ("https://cfo.economictimes.indiatimes.com/rss/leadership" ET leadership)
+		     ("https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance" ET Gov-riskcomp)
+		     ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
+		     ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
+		     ("https://rbi.org.in/notifications_rss.xml" RBI notif)
+))))
+
+;; When i was using q to kill the buffer, my hook was being called and mode change was initiated but immediately after that buffer is killed and change cannot happen as when a window is killed all the process ocuuring. This did not happen when i killed the buffer from M-x elfeed-kill-buffer as the code gets executed from minibuffer which is still active. 
+
+(defun pratik/elfeed-kill-buffer ()
+  "Kill Elfeed buffer and restore pratik-mode afterwards safely."
+ (interactive)
+ (elfeed-kill-buffer)
+ (run-at-time 0 nil 'pratik--maybe-restore-pratik-mode))
+  ;;This delays the time when restore command is executed to a little later till the buffer is killed.
+
+;; Hooks for elfeed
+(add-hook 'elfeed-search-mode-hook 'elfeed-update) ;; Updates elfeed whenever elfeed is started.
+(add-hook 'elfeed-search-mode-hook 'pratik--maybe-disable-pratik-mode) ;; Turns off pratik mode when elfeed starts.
+;; (add-hook 'elfeed-show-mode-hook (lambda () (display-line-numbers-mode 0))) ;; Turn off line numbers in elfeed-show-mode.
+;; (add-hook 'elfeed-mode-hook (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes. 
+
+;; Keybindings for navigating elfeed entries
+(global-set-key (kbd "C-c r") 'elfeed)
+(with-eval-after-load 'elfeed-search
+ (define-key elfeed-search-mode-map (kbd "n") #'elfeed-next-entry)
+ (define-key elfeed-search-mode-map (kbd "q") #'pratik/elfeed-kill-buffer)
+ (define-key elfeed-search-mode-map (kbd "p") #'elfeed-previous-entry))
+
+;;if shr use fonts is set to true then emacs respects html fonts
+(setq shr-use-fonts nil)
+#+end_src
+
+** Embark
+helpful to get context aware options.
+References: https://github.com/oantolin/embark/wiki/Additional-Configuration#use-which-key-like-a-key-menu-prompt
+
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; The `embark' package lets you target the thing or context at point
+;; and select an action to perform on it.  Use the `embark-act'
+;; command while over something to find relevant commands.
+;;
+;; When inside the minibuffer, `embark' can collect/export the
+;; contents to a fully fledged Emacs buffer.  The `embark-collect'
+;; command retains the original behaviour of the minibuffer, meaning
+;; that if you navigate over the candidate at hit RET, it will do what
+;; the minibuffer would have done.  In contrast, the `embark-export'
+;; command reads the metadata to figure out what category this is and
+;; places them in a buffer whose major mode is specialised for that
+;; type of content.  For example, when we are completing against
+;; files, the export will take us to a `dired-mode' buffer; when we
+;; preview the results of a grep, the export will put us in a
+;; `grep-mode' buffer.
+;;
+;; Further reading: https://protesilaos.com/emacs/dotemacs#h:61863da4-8739-42ae-a30f-6e9d686e1995
+(use-package embark
+  :ensure t
+  :bind (("C-." . embark-act)
+         :map minibuffer-local-map
+         ("C-c C-c" . embark-collect)
+         ("C-c C-e" . embark-export)))
+
+;; The `embark-consult' package is glue code to tie together `embark'
+;; and `consult'.
+(use-package embark-consult
+  :ensure t)
+
+(defun embark-which-key-indicator ()
+  "An embark indicator that displays keymaps using which-key.
+The which-key help message will show the type and value of the
+current target followed by an ellipsis if there are further
+targets."
+  (lambda (&optional keymap targets prefix)
+    (if (null keymap)
+        (which-key--hide-popup-ignore-command)
+      (which-key--show-keymap
+       (if (eq (plist-get (car targets) :type) 'embark-become)
+           "Become"
+         (format "Act on %s '%s'%s"
+                 (plist-get (car targets) :type)
+                 (embark--truncate-target (plist-get (car targets) :target))
+                 (if (cdr targets) "…" "")))
+       (if prefix
+           (pcase (lookup-key keymap prefix 'accept-default)
+             ((and (pred keymapp) km) km)
+             (_ (key-binding prefix 'accept-default)))
+         keymap)
+       nil nil t (lambda (binding)
+                   (not (string-suffix-p "-argument" (cdr binding))))))))
+
+(setq embark-indicators
+  '(embark-which-key-indicator
+    embark-highlight-indicator
+    embark-isearch-highlight-indicator))
+
+(defun embark-hide-which-key-indicator (fn &rest args)
+  "Hide the which-key indicator immediately when using the completing-read prompter."
+  (which-key--hide-popup-ignore-command)
+  (let ((embark-indicators
+         (remq #'embark-which-key-indicator embark-indicators)))
+      (apply fn args)))
+
+(with-eval-after-load 'embark
+  (advice-add #'embark-completing-read-prompter
+              :around #'embark-hide-which-key-indicator))
+#+end_src
+
+** Flymake
+some errors are showing maybe .elc is corrupted.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package flymake
+  :ensure nil
+  :bind
+  ( :map ctl-x-x-map
+    ("m" . flymake-mode) ; C-x x m
+    :map flymake-mode-map
+    ("C-c ! s" . flymake-start)
+    ("C-c ! d" . flymake-show-buffer-diagnostics) ; Emacs28
+    ("C-c ! D" . flymake-show-project-diagnostics) ; Emacs28
+    ("C-c ! n" . flymake-goto-next-error)
+    ("C-c ! p" . flymake-goto-prev-error))
+  :config
+  (setq flymake-fringe-indicator-position 'right-fringe) ;;was left-fringe changed due to margin shifting
+  (setq flymake-suppress-zero-counters t)
+  (setq flymake-no-changes-timeout nil)
+  (setq flymake-start-on-flymake-mode nil)
+  (setq flymake-start-on-save-buffer t)
+  (setq flymake-proc-compilation-prevents-syntax-check t)
+  (setq flymake-wrap-around nil)
+  (setq flymake-mode-line-format
+        '("" flymake-mode-line-exception flymake-mode-line-counters)))
+#+end_src
+
+** Flyspell
+downloaded hunspell
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package ispell
+  :ensure nil
+  :config
+  (setq-default ispell-program-name "~/hunspell/hunspell.exe")
+  (setq ispell-dictionary "en_US")
+  (setq ispell-quietly t)
+  (setq flyspell-issue-welcome-flag nil)
+  (setq flyspell-issue-message-flag nil)
+  (setq ispell-local-dictionary "en_US")
+  (setq ispell-extra-args '("-d" "en_US"))
+  (setq ispell-local-dictionary-alist
+      '(("en_US" "[A-Za-z]" "[^A-Za-z]" "[']" nil nil nil utf-8)))
+  (setq ispell-hunspell-dictionary-alist
+        '(("en_US"
+           "~/hunspell/en_US.aff"
+           "~/hunspell/en_US.dic"
+           "~/hunspell/.hunspell_en_US"
+           nil nil nil "utf-8"))))
+
+(use-package flyspell
+  :ensure nil
+  :bind 
+   ( :map flyspell-mode-map 
+     ("<mouse-3>" . flyspell-correct-word)
+     ("<mouse-2>" . nil))
+  :config)
+#+end_src
+
+** Font
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(set-face-attribute 'default nil
+  :font "AporeticSansMonoNerdFont"
+  :height 140
+  :weight 'medium)
+
+(set-face-attribute 'variable-pitch nil
+  :font "AporeticSansMonoNerdFont"
+  :height 140
+  :weight 'medium)
+
+(set-face-attribute 'fixed-pitch nil
+  :font "AporeticSansMonoNerdFont"
+  :height 140
+  :weight 'medium)
+
+;; Makes commented text and keywords italics.
+;; This is working in emacsclient but not emacs.
+;; Your font must have an italic face available.
+(set-face-attribute 'font-lock-comment-face nil
+  :slant 'italic)
+(set-face-attribute 'font-lock-keyword-face nil
+  :slant 'italic)
+
+;; This sets the default font on all graphical frames created after restarting Emacs.
+;; Does the same thing as 'set-face-attribute default' above, but emacsclient fonts
+;; are not right unless I also add this method of setting the default font.
+(add-to-list 'default-frame-alist '(font . "AporeticSansMonoNerdFont-14"))
+(setq-default line-spacing 0) ;;default value was 0.1
+#+end_src
+
+** Git bash utls
+This adds various utilitites to emacs without changing my system path.
+
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(let ((git-bash-bin "C:/Program Files/Git/usr/bin")
+      (imagemagick-bin "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI")
+      (xournal-bin "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"))
+
+  ;; Add to exec-path only if not already present
+  (unless (member git-bash-bin exec-path)
+    (add-to-list 'exec-path git-bash-bin))
+
+  (unless (member imagemagick-bin exec-path)
+    (add-to-list 'exec-path imagemagick-bin))
+
+  (unless (member xournal-bin exec-path)
+    (add-to-list 'exec-path xournal-bin)))
+#+end_src
+
+** Magit
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package transient :ensure t
+  :config
+  (setq transient-show-popup 0.5))
+
+(use-package magit
+  :ensure t
+  :bind
+  ( :map global-map
+    ("C-c g" . magit-status)
+    :map magit-mode-map
+    ("C-w" . nil)
+    ("M-w" . nil))
+  :init
+  (setq magit-define-global-key-bindings nil)
+  (setq magit-section-visibility-indicator '(magit-fringe-bitmap> . magit-fringe-bitmapv))
+  :config
+  (setq git-commit-summary-max-length 50)
+  (setq git-commit-style-convention-checks '(non-empty-second-line))
+  (setq magit-diff-refine-hunk t)
+  ;; Show icons for files in the Magit status and other buffers.
+  (with-eval-after-load 'magit
+    (setq magit-format-file-function #'magit-format-file-nerd-icons)))
+
+(use-package magit-repos
+  :ensure nil ; part of `magit'
+  :commands (magit-list-repositories)
+  :init
+  (setq magit-repository-directories
+        '(("~/Git/Projects" . 1))))
+#+end_src
+
+** Modeline 
+This is the current modeline setup slowly build it up using the funcitons in pratik-modeline.el.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package pratik-modeline
+  :ensure nil
+  :demand t
+  :config
+  (setq mode-line-compact nil)
+  (setq mode-line-right-align-edge 'right-margin)
+  (setq display-time-format "%d-%b %I:%M") 	  
+  (display-time-mode 1) ;; displays time in modeline
+  (setq-default mode-line-format
+	'("%e" mode-line-front-space
+	  (:propertize 
+	   ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote mode-line-window-dedicated) display (min-width (3.0)))
+	  mode-line-frame-identification
+	  pratik-modeline-state
+	  " "
+	  pratik-modeline-buffer-identification
+	  " "
+	  pratik-modeline-major-mode
+	  pratik-modeline-process
+	  " "
+	  (project-mode-line project-mode-line-format)
+	  (vc-mode vc-mode)
+	  " "
+	  mode-line-format-right-align
+	  pratik-modeline-pomodoro-icon
+	  pratik-modeline-misc-info
+	  mode-line-end-spaces)))
+#+end_src
+
+** Org Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(run-with-idle-timer
+ 1 nil
+ (lambda () (require 'org)))
+#+end_src
+
+*** Org Settings
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq org-edit-src-content-indentation 0) ;; Set src block automatic indent to 0 instead of 2.
+#+end_src
+
+*** Org Table of Contents
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package toc-org :ensure t 
+    :commands toc-org-enable
+    :init (add-hook 'org-mode-hook 'toc-org-enable))
+#+end_src
+
+*** Org Bullets
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-hook 'org-mode-hook 'org-indent-mode)
+(use-package org-bullets :ensure t)
+(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+#+end_src
+
+*** Org Agenda
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(defun pratik-setup-org-agenda-files-once (&rest _)
+  (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
+  (advice-remove 'org-agenda 'pratik-setup-org-agenda-files-once))
+
+(advice-add 'org-agenda :before 'pratik-setup-org-agenda-files-once)
+#+end_src
+
+*** Org Pomodoro timer
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-hook 'org-mode-hook
+          (lambda ()
+            (setq org-clock-sound "~/.emacs.d/.config/sounds/Interface.wav")))
+#+end_src
+
+*** Org Cite & Citar
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package citar :ensure t)
+
+(setq org-cite-global-bibliography '("~/references/library.bib"))
+(setq citar-bibliography '("~/notes/references/my library/my library.bib"))
+
+(setq org-cite-insert-processor 'citar
+      org-cite-follow-processor 'citar
+      org-cite-activate-processor 'citar)
+#+end_src
+
+*** Org drill
+Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
+    Create TODOs in review.org linking to Denote notes.
+    Use a custom hook: When a TODO with a REVIEW property is marked DONE, it:
+        Deletes the task.
+        Creates a new TODO with an increased review interval.
+    Add review.org to org-agenda-files so tasks appear in your agenda.
+    Use Hyperbole to quickly jump to notes via smart file links.
+This gives you spaced repetition with automatic rescheduling and seamless navigation.
+
+*** Org Headers
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(custom-set-faces
+ '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
+#+end_src
+
+*** Org Latex Previews
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(add-hook 'org-mode-hook
+          (lambda ()
+            (add-hook 'after-save-hook
+                      (lambda ()
+                        (when (and (derived-mode-p 'org-mode)
+                                   (save-excursion
+                                     (goto-char (point-min))
+                                     (re-search-forward "^#\\+STARTUP:.*latexpreview" nil t)))
+                          (org-latex-preview)))
+                      nil t))) ;; make after-save-hook buffer-local
+
+(add-hook 'org-mode-hook (lambda () (setq org-format-latex-options (plist-put org-format-latex-options :scale 1.2))))
+
+#+end_src
+
+*** Org mode drag and drop mode override
+This is a small code to automatically trim photos, when adding to notes.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+
+;; Define the folder where processed images will be stored
+(defvar my/org-image-folder "~/notes/images/"
+  "Folder where images dropped into org are copied and processed.")
+
+(defun my/org-dnd-handle-image (uri)
+  "Process image dropped into Org with ImageMagick: trim whitespace and make white transparent.
+The processed image is saved to `my/org-image-folder`."
+  (let* ((file (dnd-get-local-file-name uri))
+         (filename (file-name-nondirectory file))
+         (new-path (expand-file-name filename my/org-image-folder))
+         (file-dir (file-name-directory file)))
+    ;; Create the image folder if it doesn't exist
+    (unless (file-directory-p my/org-image-folder)
+      (make-directory my/org-image-folder t))
+    (message "[my/org-dnd-handle-image] Processing %s -> %s" file new-path)
+    ;; Use ImageMagick to process the image
+    (shell-command
+     (format "cd \"%s\" && magick \"%s\" -fuzz 20%% -trim +repage -strip \"%s\""
+             file-dir file new-path))
+    ;; Insert a link to the new image
+    (insert (org-link-make-string (concat "file:" new-path)))))
+
+;; Add a custom choice to the DND menu
+(advice-add 'org--dnd-rmc :around
+            (lambda (orig prompt choices)
+              (message "[org--dnd-rmc advice] Choices: %s" choices)
+              (funcall orig prompt
+                       (append choices
+                               '((?c "this is a dummy choice" . private))))))
+
+;; Handle the custom 'private' DND action
+(with-eval-after-load 'org
+  (advice-add 'org--dnd-local-file-handler :around
+              (lambda (orig url action &optional separator)
+                (message "[org--dnd-local-file-handler advice] URL: %s, Action: %s" url action)
+                (if (eq action 'private)
+                    (progn
+                      (message "[org--dnd-local-file-handler] Handling private action, calling custom handler")
+                      (my/org-dnd-handle-image url))
+                  (funcall orig url action separator)))))
+
+#+end_src
+
+*** org-bable python
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package ob-python
+  :ensure nil
+  :config
+  (setq org-babel-load-languages
+        '((emacs-lisp . t)
+          (python . t)
+          (shell . t))) ; This is where we enable Python support
+  (setq org-babel-python-command "python3"))
+
+(with-eval-after-load 'org (require 'ob-python))
+#+end_src 
+
+*** org-source-code programming support 
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el" 
+(defvar pratik-org-src-temp-files nil
+  "List of temp files created for org-src + eglot integration.")
+
+(defun pratik-org-src--edit-advice (orig-fun &rest args)
+  "Advice around `org-edit-special' to enable LSP in source block buffers."
+  (let* ((info (org-babel-get-src-block-info)) ; Only valid in Org buffer
+         (lang (car info))
+         (params (nth 2 info))
+         (is-remote (file-remote-p default-directory))
+         (tangle (cdr (assoc :tangle params)))
+         (dir (or (cdr (assoc :dir params)) default-directory))
+         (ext (pcase lang
+                ("python" "py")
+                ("emacs-lisp" "el")
+                ("latex" "tex")
+                (_ "tmp")))
+         (file (if (and tangle (not (string= tangle "no")))
+                   (expand-file-name tangle dir)
+                 (make-temp-file "org-src-eglot" nil (concat "." ext)))))
+    ;; Tangle first before switching modes
+    (org-babel-tangle '(4))
+
+    ;; Now call the original edit function (switches to edit buffer)
+    (apply orig-fun args)
+
+    ;; Now we are in the special edit buffer (e.g., python-mode)
+    ;; Set buffer-local variables for LSP/flycheck to work
+    (setq-local buffer-file-name file)
+    (setq-local default-directory dir)
+
+    ;; Track temp files for later cleanup
+    (unless (and tangle (not (string= tangle "no")))
+      (push file pratik-org-src-temp-files)
+      (add-hook 'kill-buffer-hook
+                (lambda ()
+                  (when (and buffer-file-name
+                             (member buffer-file-name pratik-org-src-temp-files))
+                    (delete-file buffer-file-name)
+                    (setq pratik-org-src-temp-files
+                          (remove buffer-file-name pratik-org-src-temp-files))))
+                nil t))
+
+    ;; Start LSP or syntax checker
+    (pcase lang
+      ("python" (eglot-ensure))
+      ("emacs-lisp" (flymake-mode 1))
+      (_ nil))))
+
+;; Use advice instead of a hook
+(advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
+#+end_src
+
+*** Source Code Block Tag Expansion
+Org-tempo is not a separate package but a module within org that can be enabled.  Org-tempo allows for '<s' followed by TAB to expand to a begin_src tag.  Other expansions available include:
+
+| Typing the below + TAB | Expands to ...                          |
+|------------------------+-----------------------------------------|
+| <a                     | '#+BEGIN_EXPORT ascii' … '#+END_EXPORT  |
+| <c                     | '#+BEGIN_CENTER' … '#+END_CENTER'       |
+| <C                     | '#+BEGIN_COMMENT' … '#+END_COMMENT'     |
+| <e                     | '#+BEGIN_EXAMPLE' … '#+END_EXAMPLE'     |
+| <E                     | '#+BEGIN_EXPORT' … '#+END_EXPORT'       |
+| <h                     | '#+BEGIN_EXPORT html' … '#+END_EXPORT'  |
+| <l                     | '#+BEGIN_EXPORT latex' … '#+END_EXPORT' |
+| <q                     | '#+BEGIN_QUOTE' … '#+END_QUOTE'         |
+| <s                     | '#+BEGIN_SRC' … '#+END_SRC'             |
+| <v                     | '#+BEGIN_VERSE' … '#+END_VERSE'         |
+
+
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el" 
+(add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
+#+end_src
+
+** Python-Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package python-mode :ensure nil
+  :config
+  (setq python-shell-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe" )
+  (setq python-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe"))
+#+end_src
+
+*** Python-Venv
+You can use .dir-locals.el for each project. Repl is easy to configure but the shell launch configuration is cumbersome.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package pyvenv :ensure t
+  :config
+  (pyvenv-mode 1))
+#+end_src
+
+** Shell  
+emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")  ;; Git Bash path
+(setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
+(setq explicit-bash-args '("--login" "-i"))
+#+end_src
+
+** Themes
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;;(use-package ef-themes :ensure t)
+;; (use-package doric-themes :ensure t)
+(setq custom-safe-themes t) ;; all installed themes are safe
+(setq custom-enabled-themes nil)
+(load-theme 'modus-operandi t)
+#+end_src
+
+*** Remove the box around the modeline.
+Here, because it has to load after theme is set.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(set-face-attribute 'mode-line nil :box 'unspecified)
+(set-face-attribute 'mode-line-inactive nil :box 'unspecified)
+(set-face-attribute 'mode-line-active nil :box 'unspecified)
+#+end_src
+
+** Visual Upgrades
+The following settings are simple modes that are enabled (or disabled) so that Emacs functions more like you would expect a proper editor/IDE to function.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(pixel-scroll-precision-mode 1) ;; smooth scrolling
+(delete-selection-mode 1)    ;; You can select text and delete it by typing.
+(global-auto-revert-mode t)  ;; Automatically show changes if the file has changed
+(defalias 'yes-or-no-p 'y-or-n-p) ;; y and n instead of yes or no.
+(setq ring-bell-function 'ignore)
+(setq visible-bell t)
+#+end_src
+
+** Vertico + orderless + marginilia + wgrep setup
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; The `vertico' package applies a vertical layout to the minibuffer.
+(use-package vertico :ensure t :demand t
+  :config
+  (setq vertico-cycle t)
+  (setq vertico-resize nil)
+  (vertico-mode 1))
+
+;; The `marginalia' package provides helpful annotations next to
+;; completion candidates in the minibuffer.
+(use-package marginalia :ensure t :demand t
+  :config
+  (marginalia-mode 1))
+
+;; The `orderless' package lets the minibuffer use an out-of-order
+;; pattern matching algorithm. 
+(use-package orderless :ensure t :demand t
+  :config
+  (setq completion-styles '(orderless basic)))
+
+;; The `consult' package provides lots of commands that are enhanced
+;; variants of basic, built-in functionality.  One of the headline
+;; features of `consult' is its preview facility, where it shows in
+;; another Emacs window the context of what is currently matched in
+;; the minibuffer.
+(use-package consult 
+  :ensure t
+  :bind (;; A recursive grep
+         ("M-s M-g" . consult-grep)
+         ;; Search for files names recursively
+         ("M-s M-f" . consult-find)
+         ;; Search through the outline (headings) of the file
+         ("M-s M-o" . consult-outline)
+         ;; Search the current buffer
+         ("M-s M-l" . consult-line)
+         ;; Switch to another buffer, or bookmarked file, or recently
+         ;; opened file.
+         ("M-s M-b" . consult-buffer)))
+
+;; The `wgrep' packages lets us edit the results of a grep search
+;; while inside a `grep-mode' buffer.  All we need is to toggle the
+;; editable mode, make the changes, and then type C-c C-c to confirm
+;; or C-c C-k to abort.
+;;
+;; Further reading: https://protesilaos.com/emacs/dotemacs#h:9a3581df-ab18-4266-815e-2edd7f7e4852
+(use-package wgrep
+  :ensure t
+  :bind ( :map grep-mode-map
+          ("e" . wgrep-change-to-wgrep-mode)
+          ("C-x C-q" . wgrep-change-to-wgrep-mode)
+          ("C-c C-c" . wgrep-finish-edit)))
+
+;; The built-in `savehist-mode' saves minibuffer histories.  Vertico
+;; can then use that information to put recently selected options at
+;; the top.
+(recentf-mode 1)
+(setq recentf-max-menu-items 25)  ;; number of items to show in the menu
+(setq recentf-max-saved-items 100) ;; number of files to save
+
+;; Enable savehist-mode
+(savehist-mode 1)
+(setq savehist-save-minibuffer-history t)
+(setq history-length 100)
+
+#+end_src
+ 
+** Which Key
+Tells you the key bindings
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(defun my-which-key-sort (a b)
+  "Custom sort function to prioritize letters over numbers."
+  (let ((key-a (car a))
+        (key-b (car b)))
+    (if (and (string-match-p "[a-zA-Z]" (char-to-string (aref key-a 0)))
+             (not (string-match-p "[a-zA-Z]" (char-to-string (aref key-b 0)))))
+        -1
+      (if (and (not (string-match-p "[a-zA-Z]" (char-to-string (aref key-a 0))))
+               (string-match-p "[a-zA-Z]" (char-to-string (aref key-b 0))))
+          1
+        (string< (char-to-string (aref key-a 0)) (char-to-string (aref key-b 0)))))))
+
+(use-package which-key :ensure nil :demand t
+  :init
+    (which-key-mode 1)
+  :config
+  (setq ;;which-key-side-window-location 'bottom
+	  which-key-sort-order #'which-key-description-order
+	  which-key-sort-uppercase-first nil
+	  which-key-add-column-padding 1
+	  which-key-max-display-columns nil
+	  which-key-min-display-lines 6
+	  which-key-side-window-slot -10
+	  which-key-side-window-max-height 0.25
+	  which-key-idle-delay 0.1
+	  which-key-page-delay 0.1
+	  which-key-max-description-length 25
+	  which-key-allow-imprecise-window-fit t
+	  which-key-separator " -> "))
+
+(use-package which-key-posframe :ensure t :demand t 
+  :config (which-key-posframe-mode 1))
+#+end_src
+
+** Whitespace-cleanup
+Fix whitespaces on file save.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package whitespace-cleanup-mode :ensure t
+ :config (add-hook 'after-save-hook (lambda ()
+                                              (when (not global-whitespace-cleanup-mode ) 
+                                                    (global-whitespace-cleanup-mode 1)))))
+#+end_src
+
+** Xah Fly Keys
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;;(use-package xah-fly-keys :ensure t :demand t
+;;  :config
+;;  (setq xah-fly-keys-layout "qwerty")
+;;  (xah-fly-keys 1))
+#+end_src
+
+** Xref
+This already works out of the box.
+ "M-." . xref-find-definitions  ;; Go to definition
+ "M-," . xref-pop-marker-stack  ;; Go back
+ "M-?" . xref-find-references   ;; Find References
+
+** Zooming In/Out
+You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTRL plus the mouse wheel for zooming in/out.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(global-set-key (kbd "C-=") 'text-scale-increase)
+(global-set-key (kbd "C--") 'text-scale-decrease)
+(global-set-key (kbd "<C-wheel-up>") 'text-scale-increase)
+(global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease)
+#+end_src
+
+ check out hyperbole (for dashboard and emms integration), org transclusion for big org files with all the notes inside, gnu auctex for latex (check out a software for referencing also), transient for context aware menu, embark for context aware shortcuts, check out org drill to convert notes into flashcards.
+
+Few more things to add: Treemacs, vterm, magit, git timemachine, server mode , perspective and beframe.(email client)
+After everything is done integrate with modeline. That should be it.
+
+** Spacious-Padding
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package spacious-padding :ensure t 
+  :init 
+        (setq spacious-padding-widths
+          `( :internal-border-width 8
+             :header-line-width 2
+             :mode-line-width 2
+             :tab-width 2
+             :right-divider-width 8
+             :scroll-bar-width ,(if x-toolkit-scroll-bars 8 6)
+             :left-fringe-width 8
+             :right-fringe-width 8))
+        
+        (setq spacious-padding-subtle-mode-line
+          '( :mode-line-active spacious-padding-subtle-mode-line-active
+             :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
+)
+
+(defvar pratik/gui-frame-count 0)
+
+(defun pratik/spacious-padding-enable-for-frame (frame)
+  (when (display-graphic-p frame)
+    (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
+    (with-selected-frame frame
+      (run-with-idle-timer
+       0 nil
+       (lambda ()
+         (require 'spacious-padding)
+         (unless (bound-and-true-p spacious-padding-mode)
+           (spacious-padding-mode 1)))))))
+
+(defun pratik/spacious-padding-disable-for-frame (frame)
+  (when (display-graphic-p frame)
+    (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
+    (when (= pratik/gui-frame-count 0)
+      (when (bound-and-true-p spacious-padding-mode)
+        (spacious-padding-mode -1)))))
+
+(if (daemonp)
+    (progn
+      (add-hook 'after-make-frame-functions
+                #'pratik/spacious-padding-enable-for-frame)
+      (add-hook 'delete-frame-functions
+                #'pratik/spacious-padding-disable-for-frame))
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq pratik/gui-frame-count 1)
+              (require 'spacious-padding)
+              (spacious-padding-mode 1))))
+#+end_src
+
+*** emms-modeline custom
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (defun my/emms-track-description-short (track)
+;;   "Return a shortened description for the EMMS mode-line."
+;;   (let ((title (emms-track-get track 'info-title)))
+;;     (if title
+;;         (let ((short-title (truncate-string-to-width title 30 nil nil "..")))
+;;           short-title)
+;;       (emms-track-simple-description track))))
+
+;; (setq emms-mode-line-mode-line-function #'my/emms-track-description-short)
+#+end_src
+
+*** spacious-padding integration
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(with-eval-after-load 'spacious-padding
+  (defun pratik-modeline-spacious-indicators ()
+    "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
+      (if (bound-and-true-p spacious-padding-mode)
+          (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
+        (set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
+
+(add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
+#+end_src
+
+
