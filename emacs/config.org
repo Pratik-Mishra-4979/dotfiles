@@ -241,33 +241,6 @@ Adds the feature to make subtree a new file, and add files contents using a dyna
     denote-org-dblock-insert-files-as-headings))
 #+end_src
 
-*** Denote Sequence
-adds the ability to sequence the notes.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package denote-sequence
-  :ensure t
-  :bind
-  ( :map global-map
-    ;; Here we make "C-c n s" a prefix for all "[n]otes with [s]equence".
-    ;; This is just for demonstration purposes: use the key bindings
-    ;; that work for you.  Also check the commands:
-    ;;
-    ;; - `denote-sequence-new-parent'
-    ;; - `denote-sequence-new-sibling'
-    ;; - `denote-sequence-new-child'
-    ;; - `denote-sequence-new-child-of-current'
-    ;; - `denote-sequence-new-sibling-of-current'
-    ("C-c n s s" . denote-sequence)
-    ("C-c n s f" . denote-sequence-find)
-    ("C-c n s l" . denote-sequence-link)
-    ("C-c n s d" . denote-sequence-dired)
-    ("C-c n s r" . denote-sequence-reparent)
-    ("C-c n s c" . denote-sequence-convert))
-  :config
-  ;; The default sequence scheme is `numeric'.
-  (setq denote-sequence-scheme 'alphanumeric))
-#+end_src
-
 *** Denote Consult
 adds integration of consult and denote.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -672,8 +645,8 @@ This gives you spaced repetition with automatic rescheduling and seamless naviga
 
 *** Org Headers
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (custom-set-faces
-;;  '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
+(custom-set-faces
+ '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
 #+end_src
 
 *** Org Latex Previews
