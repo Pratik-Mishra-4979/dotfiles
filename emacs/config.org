@@ -1,46 +1,7 @@
 #+TITLE:Pratik's GNU Emacs Config
 #+AUTHOR: Pratik Mishra
 #+DESCRIPTION: Pratik's personal Emacs config.
-#+STARTUP: showeverything
-#+OPTIONS: toc:2
-
-* Table of Contents :toc:
--  [[#early-initel][early-init.el]]
-  - [[#make-frame-invisible][Make Frame Invisible]]
-  - [[#elpaca-package-setup][Elpaca package setup]]
-  - [[#garbage-collection-threshold-increase][Garbage collection threshold increase]]
-  - [[#language-environment][Language Environment]]
-  - [[#performance-boost][Performance boost]]
-  - [[#transparency][Transparency]]
--  [[#initel][init.el]]
-  - [[#important-programs-to-load-first][IMPORTANT PROGRAMS TO LOAD FIRST]]
-  - [[#all-the-icons][All the icons.]]
-  - [[#calendar][Calendar]]
-  - [[#corfu][Corfu]]
-  - [[#dashboard][Dashboard]]
-  - [[#denote][Denote]]
-  - [[#dont-clutter][Don't clutter]]
-  - [[#eglot][Eglot]]
-  - [[#electric-mode][Electric Mode]]
-  - [[#elfeed][Elfeed]]
-  - [[#embark][Embark]]
-  - [[#flymake][Flymake]]
-  - [[#flyspell][Flyspell]]
-  - [[#font][Font]]
-  - [[#git-bash-utls][Git bash utls]]
-  - [[#magit][Magit]]
-  - [[#modeline][Modeline]]
-  - [[#org-mode][Org Mode]]
-  - [[#python-mode][Python-Mode]]
-  - [[#shell][Shell]]
-  - [[#themes][Themes]]
-  - [[#visual-upgrades][Visual Upgrades]]
-  - [[#vertico--orderless--marginilia--wgrep-setup][Vertico + orderless + marginilia + wgrep setup]]
-  - [[#which-key][Which Key]]
-  - [[#whitespace-cleanup][Whitespace-cleanup]]
-  - [[#xah-fly-keys][Xah Fly Keys]]
-  - [[#xref][Xref]]
-  - [[#zooming-inout][Zooming In/Out]]
+#+STARTUP: content
 
 *  early-init.el
 ** Make Frame Invisible
@@ -71,7 +32,7 @@ Lazy loading packages.
 
 ** Performance boost
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(menu-bar-mode -1)           ;; Disable the menu bar 
+(menu-bar-mode -1)           ;; Disable the menu bar
 (tool-bar-mode -1)           ;; Disable the tool bar
 ;;(global-display-line-numbers-mode 1) ;; Display line numbers
 (blink-cursor-mode -1) ;; disable blinking cursor
@@ -112,7 +73,7 @@ Lazy loading packages.
 ** Transparency
 Enabling Transparency
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-;;(add-to-list 'default-frame-alist '(alpha . 95)) 
+;;(add-to-list 'default-frame-alist '(alpha . 95))
 #+end_src
 
 *  init.el
@@ -142,14 +103,14 @@ Enabling Transparency
 
 *** Garbage collection reset and threshold increase
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(add-hook 'elpaca-after-init-hook (lambda () (setq gc-cons-threshold 20000000) 
-				(setq gc-cons-percentage 0.1)))
+(add-hook 'elpaca-after-init-hook (lambda () (setq gc-cons-threshold 20000000)
+                                (setq gc-cons-percentage 0.1)))
 #+end_src
 
 *** Make the frame visible
 This makes sure the frame is made visible after dashboard is open.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t))) 
+(add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t)))
 #+end_src
 
 *** Benchmarking Tools
@@ -162,7 +123,7 @@ This makes sure the frame is made visible after dashboard is open.
 
 ** All the icons.
 This is an icon set that can be used with dashboard, dired, ibuffer and other Emacs programs.
-  
+
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
   (use-package nerd-icons :ensure t :demand t
     :custom
@@ -213,7 +174,7 @@ install calfw and make it sync with google calendar. set it up when requried.
   (insert
    (format ";;
 ;; ███████╗███╗   ███╗ █████╗  ██████╗███████╗
-;; ██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝ 
+;; ██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝
 ;; █████╗  ██╔████╔██║███████║██║     ███████╗
 ;; ██╔══╝  ██║╚██╔╝██║██╔══██║██║     ╚════██║
 ;; ███████╗██║ ╚═╝ ██║██║  ██║╚██████╗███████║
@@ -235,7 +196,7 @@ install calfw and make it sync with google calendar. set it up when requried.
        (replace-match
         (format "Packages     : %s"
                 (cdr (assq 'finished elpaca--status-counts)))))
-     (goto-char (point-max))))) 
+     (goto-char (point-max)))))
 
 (message (emacs-init-time))
 #+end_src
@@ -247,10 +208,10 @@ install calfw and make it sync with google calendar. set it up when requried.
   :hook (dired-mode . denote-dired-mode)
   :bind (("C-c n n" . denote)
          ("C-c n r" . denote-rename-file)
-	 ("C-c n l" . denote-link)
-	 ("C-c n b" . denote-backlinks)
-	 ("C-c n d" . denote-dired)
-	 ("C-c n g" . denote-grep))
+         ("C-c n l" . denote-link)
+         ("C-c n b" . denote-backlinks)
+         ("C-c n d" . denote-dired)
+         ("C-c n g" . denote-grep))
   :config (setq denote-directory (expand-file-name "~/notes/"))
   (denote-rename-buffer-mode 1)
   (setq denote-dired-directories-include-subdirectories t))
@@ -319,7 +280,7 @@ adds integration of consult and denote.
   (consult-denote-mode 1))
 #+end_src
 
-** Don't clutter 
+** Don't clutter
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
 (setq auto-save-file-name-transforms '((".*" "~/.emacs.d/backups/" t)))
@@ -341,18 +302,18 @@ Eglot (built-in client for the language server protocol)
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package electric
   :ensure nil
-  :hook
-  (prog-mode . electric-indent-local-mode)
+  ;; :hook
+  ;; (prog-mode . electric-indent-local-mode)
   :config
   (electric-pair-mode 1)
   (electric-quote-mode -1)
-  (electric-indent-mode -1))    ;; Turn off the weird indenting that Emacs does by default.
+  (electric-indent-mode 1))    ;; Turn it off if you do not like default indentation.
 
 ;; The following prevents <> from auto-pairing when electric-pair-mode is on.(useful for org tempo)
 (add-hook 'org-mode-hook (lambda ()
-           (setq-local electric-pair-inhibit-predicate
-                   `(lambda (c)
-                  (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+			   (setq-local electric-pair-inhibit-predicate
+				       `(lambda (c)
+					  (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
 #+end_src
 
 ** Elfeed
@@ -361,29 +322,29 @@ Eglot (built-in client for the language server protocol)
   :init
         (setq elfeed-enclosure-default-dir "~/Downloads/")
         (setq elfeed-show-entry-switch 'switch-to-buffer)
-	(setq shr-max-image-proportion 0.6)
-	(setq elfeed-search-filter "@2-weeks-ago +unread")
-	(setq elfeed-search-title-max-width 100)
-	(setq elfeed-search-title-min-width 30)
-	(setq elfeed-search-trailing-width 25)
-	(setq elfeed-show-unique-buffers nil)
+        (setq shr-max-image-proportion 0.6)
+        (setq elfeed-search-filter "@2-weeks-ago +unread")
+        (setq elfeed-search-title-max-width 100)
+        (setq elfeed-search-title-min-width 30)
+        (setq elfeed-search-trailing-width 25)
+        (setq elfeed-show-unique-buffers nil)
   :config
-        (setq elfeed-feeds (quote 
-		    (
-		     ("https://frontline.thehindu.com/feeder/default.rss" TheHindu)
-		     ("https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting" ET TaxLegAcc)
-		     ("https://cfo.economictimes.indiatimes.com/rss/corporate-finance" ET CF)
-		     ("https://cfo.economictimes.indiatimes.com/rss/esg" ET ESG)
-		     ("https://cfo.economictimes.indiatimes.com/rss/strategy-operations" ET StratOper)
-		     ("https://cfo.economictimes.indiatimes.com/rss/policy" ET policy)
-		     ("https://cfo.economictimes.indiatimes.com/rss/leadership" ET leadership)
-		     ("https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance" ET Gov-riskcomp)
-		     ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
-		     ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
-		     ("https://rbi.org.in/notifications_rss.xml" RBI notif)
+        (setq elfeed-feeds (quote
+                    (
+                     ("https://frontline.thehindu.com/feeder/default.rss" TheHindu)
+                     ("https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting" ET TaxLegAcc)
+                     ("https://cfo.economictimes.indiatimes.com/rss/corporate-finance" ET CF)
+                     ("https://cfo.economictimes.indiatimes.com/rss/esg" ET ESG)
+                     ("https://cfo.economictimes.indiatimes.com/rss/strategy-operations" ET StratOper)
+                     ("https://cfo.economictimes.indiatimes.com/rss/policy" ET policy)
+                     ("https://cfo.economictimes.indiatimes.com/rss/leadership" ET leadership)
+                     ("https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance" ET Gov-riskcomp)
+                     ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
+                     ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
+                     ("https://rbi.org.in/notifications_rss.xml" RBI notif)
 ))))
 
-;; When i was using q to kill the buffer, my hook was being called and mode change was initiated but immediately after that buffer is killed and change cannot happen as when a window is killed all the process ocuuring. This did not happen when i killed the buffer from M-x elfeed-kill-buffer as the code gets executed from minibuffer which is still active. 
+;; When i was using q to kill the buffer, my hook was being called and mode change was initiated but immediately after that buffer is killed and change cannot happen as when a window is killed all the process ocuuring. This did not happen when i killed the buffer from M-x elfeed-kill-buffer as the code gets executed from minibuffer which is still active.
 
 (defun pratik/elfeed-kill-buffer ()
   "Kill Elfeed buffer and restore pratik-mode afterwards safely."
@@ -396,7 +357,7 @@ Eglot (built-in client for the language server protocol)
 (add-hook 'elfeed-search-mode-hook 'elfeed-update) ;; Updates elfeed whenever elfeed is started.
 (add-hook 'elfeed-search-mode-hook 'pratik--maybe-disable-pratik-mode) ;; Turns off pratik mode when elfeed starts.
 ;; (add-hook 'elfeed-show-mode-hook (lambda () (display-line-numbers-mode 0))) ;; Turn off line numbers in elfeed-show-mode.
-;; (add-hook 'elfeed-mode-hook (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes. 
+;; (add-hook 'elfeed-mode-hook (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes.
 
 ;; Keybindings for navigating elfeed entries
 (global-set-key (kbd "C-c r") 'elfeed)
@@ -533,8 +494,8 @@ downloaded hunspell
 
 (use-package flyspell
   :ensure nil
-  :bind 
-   ( :map flyspell-mode-map 
+  :bind
+   ( :map flyspell-mode-map
      ("<mouse-3>" . flyspell-correct-word)
      ("<mouse-2>" . nil))
   :config)
@@ -543,40 +504,40 @@ downloaded hunspell
 ** Font
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (set-face-attribute 'default nil
-  :font "AporeticSansMonoNerdFont"
-  :height 140
-  :weight 'medium)
+		    :family "AporeticSansMonoNerdFont"
+		    :height 140
+		    :weight 'medium)
 
 (set-face-attribute 'variable-pitch nil
-  :font "AporeticSansMonoNerdFont"
-  :height 140
-  :weight 'medium)
+		    :family "Aporetic Sans"
+		    :height 140
+		    :weight 'medium)
 
 (set-face-attribute 'fixed-pitch nil
-  :font "AporeticSansMonoNerdFont"
-  :height 140
-  :weight 'medium)
+		    :family "AporeticSansMonoNerdFont"
+		    :height 140
+		    :weight 'medium)
 
 ;; Makes commented text and keywords italics.
 ;; This is working in emacsclient but not emacs.
 ;; Your font must have an italic face available.
 (set-face-attribute 'font-lock-comment-face nil
-  :slant 'italic)
+		    :slant 'italic)
 (set-face-attribute 'font-lock-keyword-face nil
-  :slant 'italic)
+		    :slant 'italic)
 
 ;; This sets the default font on all graphical frames created after restarting Emacs.
 ;; Does the same thing as 'set-face-attribute default' above, but emacsclient fonts
 ;; are not right unless I also add this method of setting the default font.
 (add-to-list 'default-frame-alist '(font . "AporeticSansMonoNerdFont-14"))
-(setq-default line-spacing 0) ;;default value was 0.1
+(setq-default line-spacing 0.06) ;;default value was 0.1
 #+end_src
 
 ** Git bash utls
 This adds various utilitites to emacs without changing my system path.
 
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(let ((git-bash-bin "C:/Program Files/Git/usr/bin")
+(let ((git-bash-bin "C:/Program Files/Git/bin/")
       (imagemagick-bin "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI")
       (xournal-bin "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"))
 
@@ -624,7 +585,7 @@ This adds various utilitites to emacs without changing my system path.
         '(("~/Git/Projects" . 1))))
 #+end_src
 
-** Modeline 
+** Modeline
 This is the current modeline setup slowly build it up using the funcitons in pratik-modeline.el.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package pratik-modeline
@@ -633,27 +594,27 @@ This is the current modeline setup slowly build it up using the funcitons in pra
   :config
   (setq mode-line-compact nil)
   (setq mode-line-right-align-edge 'right-margin)
-  (setq display-time-format "%d-%b %I:%M") 	  
+  (setq display-time-format "%d-%b %I:%M")
   (display-time-mode 1) ;; displays time in modeline
   (setq-default mode-line-format
-	'("%e" mode-line-front-space
-	  (:propertize 
-	   ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote mode-line-window-dedicated) display (min-width (3.0)))
-	  mode-line-frame-identification
-	  pratik-modeline-state
-	  " "
-	  pratik-modeline-buffer-identification
-	  " "
-	  pratik-modeline-major-mode
-	  pratik-modeline-process
-	  " "
-	  (project-mode-line project-mode-line-format)
-	  (vc-mode vc-mode)
-	  " "
-	  mode-line-format-right-align
-	  pratik-modeline-pomodoro-icon
-	  pratik-modeline-misc-info
-	  mode-line-end-spaces)))
+        '("%e" mode-line-front-space
+          (:propertize
+           ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote mode-line-window-dedicated) display (min-width (3.0)))
+          mode-line-frame-identification
+          pratik-modeline-state
+          " "
+          pratik-modeline-buffer-identification
+          " "
+          pratik-modeline-major-mode
+          pratik-modeline-process
+          " "
+          (project-mode-line project-mode-line-format)
+          (vc-mode vc-mode)
+          " "
+          mode-line-format-right-align
+          pratik-modeline-pomodoro-icon
+          pratik-modeline-misc-info
+          mode-line-end-spaces)))
 #+end_src
 
 ** Org Mode
@@ -661,25 +622,14 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 (run-with-idle-timer
  1 nil
  (lambda () (require 'org)))
+(setq org-hide-emphasis-markers t) ;; hides the *_*, /*/ markers
+(add-hook 'org-mode-hook 'variable-pitch-mode) ;; enables variable pitch mode in org.
+(setq org-startup-indented t) ;; org starts with org-indent-mode
 #+end_src
 
 *** Org Settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(setq org-edit-src-content-indentation 0) ;; Set src block automatic indent to 0 instead of 2.
-#+end_src
-
-*** Org Table of Contents
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package toc-org :ensure t 
-    :commands toc-org-enable
-    :init (add-hook 'org-mode-hook 'toc-org-enable))
-#+end_src
-
-*** Org Bullets
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(add-hook 'org-mode-hook 'org-indent-mode)
-(use-package org-bullets :ensure t)
-(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+(setq org-edit-src-content-indentation 0) ;; default is 2, if not done auto-comment does not work.
 #+end_src
 
 *** Org Agenda
@@ -722,8 +672,8 @@ This gives you spaced repetition with automatic rescheduling and seamless naviga
 
 *** Org Headers
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(custom-set-faces
- '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
+;; (custom-set-faces
+;;  '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
 #+end_src
 
 *** Org Latex Previews
@@ -802,10 +752,10 @@ The processed image is saved to `my/org-image-folder`."
   (setq org-babel-python-command "python3"))
 
 (with-eval-after-load 'org (require 'ob-python))
-#+end_src 
+#+end_src
 
-*** org-source-code programming support 
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el" 
+*** org-source-code programming support
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defvar pratik-org-src-temp-files nil
   "List of temp files created for org-src + eglot integration.")
 
@@ -875,7 +825,7 @@ Org-tempo is not a separate package but a module within org that can be enabled.
 | <v                     | '#+BEGIN_VERSE' … '#+END_VERSE'         |
 
 
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el" 
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
 #+end_src
 
@@ -895,10 +845,10 @@ You can use .dir-locals.el for each project. Repl is easy to configure but the s
   (pyvenv-mode 1))
 #+end_src
 
-** Shell  
+** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")  ;; Git Bash path
+(setq shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")  ;; Git Bash path
 (setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
 (setq explicit-bash-args '("--login" "-i"))
 #+end_src
@@ -906,18 +856,17 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 ** Themes
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;;(use-package ef-themes :ensure t)
-;; (use-package doric-themes :ensure t)
+;;(use-package doric-themes :ensure t)
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
-(load-theme 'modus-operandi t)
-#+end_src
-
-*** Remove the box around the modeline.
-Here, because it has to load after theme is set.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(set-face-attribute 'mode-line nil :box 'unspecified)
-(set-face-attribute 'mode-line-inactive nil :box 'unspecified)
-(set-face-attribute 'mode-line-active nil :box 'unspecified)
+(use-package modus-themes :ensure t :demand t
+  :config
+  (setq modus-themes-mixed-fonts t)
+  (setq modus-themes-variable-pitch-ui t)
+  (load-theme 'modus-operandi t)
+  (set-face-attribute 'mode-line nil :box 'unspecified)
+  (set-face-attribute 'mode-line-inactive nil :box 'unspecified)
+  (set-face-attribute 'mode-line-active nil :box 'unspecified))
 #+end_src
 
 ** Visual Upgrades
@@ -947,7 +896,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (marginalia-mode 1))
 
 ;; The `orderless' package lets the minibuffer use an out-of-order
-;; pattern matching algorithm. 
+;; pattern matching algorithm.
 (use-package orderless :ensure t :demand t
   :config
   (setq completion-styles '(orderless basic)))
@@ -957,7 +906,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
 ;; features of `consult' is its preview facility, where it shows in
 ;; another Emacs window the context of what is currently matched in
 ;; the minibuffer.
-(use-package consult 
+(use-package consult
   :ensure t
   :bind (;; A recursive grep
          ("M-s M-g" . consult-grep)
@@ -997,7 +946,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (setq history-length 100)
 
 #+end_src
- 
+
 ** Which Key
 Tells you the key bindings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -1018,20 +967,20 @@ Tells you the key bindings
     (which-key-mode 1)
   :config
   (setq ;;which-key-side-window-location 'bottom
-	  which-key-sort-order #'which-key-description-order
-	  which-key-sort-uppercase-first nil
-	  which-key-add-column-padding 1
-	  which-key-max-display-columns nil
-	  which-key-min-display-lines 6
-	  which-key-side-window-slot -10
-	  which-key-side-window-max-height 0.25
-	  which-key-idle-delay 0.1
-	  which-key-page-delay 0.1
-	  which-key-max-description-length 25
-	  which-key-allow-imprecise-window-fit t
-	  which-key-separator " -> "))
+          which-key-sort-order #'which-key-description-order
+          which-key-sort-uppercase-first nil
+          which-key-add-column-padding 1
+          which-key-max-display-columns nil
+          which-key-min-display-lines 6
+          which-key-side-window-slot -10
+          which-key-side-window-max-height 0.25
+          which-key-idle-delay 0.1
+          which-key-page-delay 0.1
+          which-key-max-description-length 25
+          which-key-allow-imprecise-window-fit t
+          which-key-separator " -> "))
 
-(use-package which-key-posframe :ensure t :demand t 
+(use-package which-key-posframe :ensure t :demand t
   :config (which-key-posframe-mode 1))
 #+end_src
 
@@ -1040,7 +989,7 @@ Fix whitespaces on file save.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package whitespace-cleanup-mode :ensure t
  :config (add-hook 'after-save-hook (lambda ()
-                                              (when (not global-whitespace-cleanup-mode ) 
+                                              (when (not global-whitespace-cleanup-mode )
                                                     (global-whitespace-cleanup-mode 1)))))
 #+end_src
 
@@ -1069,8 +1018,6 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 
  check out hyperbole (for dashboard and emms integration), org transclusion for big org files with all the notes inside, gnu auctex for latex (check out a software for referencing also), transient for context aware menu, embark for context aware shortcuts, check out org drill to convert notes into flashcards.
 
-Few more things to add: Treemacs, vterm, magit, git timemachine, server mode , perspective and beframe.(email client)
+Few more things to add: Treemacs, vterm, git timemachine, server mode , perspective and beframe.(email client)
 After everything is done integrate with modeline. That should be it.
-
-
 
