@@ -38,14 +38,14 @@
 
 ;;Define keybindings for various commands in your custom minor mode
  (pratik/leader-keys
-    "." '(consult-buffer :wk "Find file")
+    "." '(find-file :wk "Find file")
     "f c" '((lambda () (interactive) (find-file "~/.emacs.d/config.org")) :wk "Edit emacs config")
-    "f r" '(consult-recent-file :wk "Find recent files")
+    "f r" '(recentf :wk "Find recent files")
     "TAB TAB" '(comment-line :wk "Comment lines"))
 
    (pratik/leader-keys
     "b" '(:ignore t :wk "buffer")
-    "b b" '(consult-buffer :wk "Switch buffer")
+    "b b" '(switch-to-buffer :wk "Switch buffer")
     "b i" '(ibuffer :wk "Ibuffer")
     "b k" '(kill-current-buffer :wk "Kill this buffer")
     "b n" '(next-buffer :wk "Next buffer")

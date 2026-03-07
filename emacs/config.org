@@ -4,10 +4,12 @@
 #+STARTUP: content
 
 *  early-init.el
-** Make Frame Invisible
+** Frame Settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
 (setq frame-inhibit-implied-resize t)
 (push '(visibility . nil) default-frame-alist)
+;; Always start emacs and frames maximized.
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
 #+end_src
 
 ** Elpaca package setup
@@ -37,6 +39,8 @@ Lazy loading packages.
 ;;(global-display-line-numbers-mode 1) ;; Display line numbers
 (blink-cursor-mode -1) ;; disable blinking cursor
 (global-visual-line-mode t)  ;; Enable truncated lines
+;;; this makes the visual line mode wrap according to prefix
+(setq global-visual-wrap-prefix-mode t)
 (setq frame-title-format "") ;; Disable the title in emacs frame.
 (setq help-window-select t) ;; always select the help window
 
@@ -79,14 +83,18 @@ Enabling Transparency
 *  init.el
 ** IMPORTANT PROGRAMS TO LOAD FIRST
 *** Adding the scripts directory to path
+    
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
 #+end_src
 
-*** Adding user-name and email-address
+*** Defining Variables
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq user-full-name "Pratik Mishra"
       user-mail-address "pratikmishra4979@gmail.com")
+(setq user-fixed-pitch-font "AporeticSerifMonoNerdFont")
+(setq user-variable-pitch-font "Aporetic Serif")
+(setq user-font-size 15)
 #+end_src
 
 *** Setting the default-directory
@@ -127,7 +135,7 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
   (use-package nerd-icons :ensure t :demand t
     :custom
-    (nerd-icons-font-family "AporeticSansMonoNerdFont"))
+    (nerd-icons-font-family user-fixed-pitch-font))
 
   (use-package nerd-icons-dired :ensure t
     :after nerd-icons
@@ -146,6 +154,40 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 install calfw and make it sync with google calendar. set it up when requried.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package calfw :ensure t)
+#+end_src
+
+** Center-Document Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(defvar emacs-solo-center-document-desired-width 100
+  "The desired width of a document centered in the window.")
+
+(defun emacs-solo/center-document--adjust-margins ()
+  ;; Reset margins first before recalculating
+  (set-window-parameter nil 'min-margins nil)
+  (set-window-margins nil nil)
+
+  ;; Adjust margins if the mode is on
+  (when emacs-solo/center-document-mode
+    (let ((margin-width (max 0
+                             (truncate
+                              (/ (- (window-width)
+                                    emacs-solo-center-document-desired-width)
+                                 2.0)))))
+      (when (> margin-width 0)
+        (set-window-parameter nil 'min-margins '(0 . 0))
+        (set-window-margins nil margin-width margin-width)))))
+
+(define-minor-mode emacs-solo/center-document-mode
+  "Toggle centered text layout in the current buffer."
+  :lighter " Centered"
+  :group 'editing
+  (if emacs-solo/center-document-mode
+      (add-hook 'window-configuration-change-hook #'emacs-solo/center-document--adjust-margins 'append 'local)
+    (remove-hook 'window-configuration-change-hook #'emacs-solo/center-document--adjust-margins 'local))
+  (emacs-solo/center-document--adjust-margins))
+
+
+(add-hook 'org-mode-hook #'emacs-solo/center-document-mode)
 #+end_src
 
 ** Corfu
@@ -343,80 +385,6 @@ Eglot (built-in client for the language server protocol)
 (setq shr-use-fonts nil)
 #+end_src
 
-** Embark
-helpful to get context aware options.
-References: https://github.com/oantolin/embark/wiki/Additional-Configuration#use-which-key-like-a-key-menu-prompt
-
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; The `embark' package lets you target the thing or context at point
-;; and select an action to perform on it.  Use the `embark-act'
-;; command while over something to find relevant commands.
-;;
-;; When inside the minibuffer, `embark' can collect/export the
-;; contents to a fully fledged Emacs buffer.  The `embark-collect'
-;; command retains the original behaviour of the minibuffer, meaning
-;; that if you navigate over the candidate at hit RET, it will do what
-;; the minibuffer would have done.  In contrast, the `embark-export'
-;; command reads the metadata to figure out what category this is and
-;; places them in a buffer whose major mode is specialised for that
-;; type of content.  For example, when we are completing against
-;; files, the export will take us to a `dired-mode' buffer; when we
-;; preview the results of a grep, the export will put us in a
-;; `grep-mode' buffer.
-;;
-;; Further reading: https://protesilaos.com/emacs/dotemacs#h:61863da4-8739-42ae-a30f-6e9d686e1995
-(use-package embark
-  :ensure t
-  :bind (("C-." . embark-act)
-         :map minibuffer-local-map
-         ("C-c C-c" . embark-collect)
-         ("C-c C-e" . embark-export)))
-
-;; The `embark-consult' package is glue code to tie together `embark'
-;; and `consult'.
-(use-package embark-consult
-  :ensure t)
-
-(defun embark-which-key-indicator ()
-  "An embark indicator that displays keymaps using which-key.
-The which-key help message will show the type and value of the
-current target followed by an ellipsis if there are further
-targets."
-  (lambda (&optional keymap targets prefix)
-    (if (null keymap)
-        (which-key--hide-popup-ignore-command)
-      (which-key--show-keymap
-       (if (eq (plist-get (car targets) :type) 'embark-become)
-           "Become"
-         (format "Act on %s '%s'%s"
-                 (plist-get (car targets) :type)
-                 (embark--truncate-target (plist-get (car targets) :target))
-                 (if (cdr targets) "…" "")))
-       (if prefix
-           (pcase (lookup-key keymap prefix 'accept-default)
-             ((and (pred keymapp) km) km)
-             (_ (key-binding prefix 'accept-default)))
-         keymap)
-       nil nil t (lambda (binding)
-                   (not (string-suffix-p "-argument" (cdr binding))))))))
-
-(setq embark-indicators
-  '(embark-which-key-indicator
-    embark-highlight-indicator
-    embark-isearch-highlight-indicator))
-
-(defun embark-hide-which-key-indicator (fn &rest args)
-  "Hide the which-key indicator immediately when using the completing-read prompter."
-  (which-key--hide-popup-ignore-command)
-  (let ((embark-indicators
-         (remq #'embark-which-key-indicator embark-indicators)))
-      (apply fn args)))
-
-(with-eval-after-load 'embark
-  (advice-add #'embark-completing-read-prompter
-              :around #'embark-hide-which-key-indicator))
-#+end_src
-
 ** Flymake
 some errors are showing maybe .elc is corrupted.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -477,18 +445,18 @@ downloaded hunspell
 ** Font
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (set-face-attribute 'default nil
-		    :family "AporeticSansMonoNerdFont"
-		    :height 140
+		    :family user-fixed-pitch-font
+		    :height (* user-font-size 10)
 		    :weight 'medium)
 
 (set-face-attribute 'variable-pitch nil
-		    :family "Aporetic Sans"
-		    :height 140
+		    :family user-variable-pitch-font
+		    :height (* user-font-size 10)
 		    :weight 'medium)
 
 (set-face-attribute 'fixed-pitch nil
-		    :family "AporeticSansMonoNerdFont"
-		    :height 140
+		    :family user-fixed-pitch-font
+		    :height (* user-font-size 10)
 		    :weight 'medium)
 
 ;; Makes commented text and keywords italics.
@@ -502,7 +470,10 @@ downloaded hunspell
 ;; This sets the default font on all graphical frames created after restarting Emacs.
 ;; Does the same thing as 'set-face-attribute default' above, but emacsclient fonts
 ;; are not right unless I also add this method of setting the default font.
-(add-to-list 'default-frame-alist '(font . "AporeticSansMonoNerdFont-14"))
+(setq user-frame-font
+      (format "%s-%d" user-fixed-pitch-font user-font-size))
+
+(add-to-list 'default-frame-alist `(font . ,user-frame-font))
 (setq-default line-spacing 0.06) ;;default value was 0.1
 #+end_src
 
@@ -566,7 +537,7 @@ This is the current modeline setup slowly build it up using the funcitons in pra
   :demand t
   :config
   (setq mode-line-compact nil)
-  (setq mode-line-right-align-edge 'right-margin)
+  (setq mode-line-right-align-edge 'window) ;; changed from 'right-margin
   (setq display-time-format "%d-%b %I:%M")
   (display-time-mode 1) ;; displays time in modeline
   (setq-default mode-line-format
@@ -596,8 +567,28 @@ This is the current modeline setup slowly build it up using the funcitons in pra
  1 nil
  (lambda () (require 'org)))
 (setq org-hide-emphasis-markers t) ;; hides the *_*, /*/ markers
-(add-hook 'org-mode-hook 'variable-pitch-mode) ;; enables variable pitch mode in org.
-(setq org-startup-indented t) ;; org starts with org-indent-mode
+
+;;;This enables variable pitch mode, also check modus themes mixed fonts variable.
+(add-hook 'org-mode-hook 'variable-pitch-mode)
+
+;;; This enables artificial indentation (at display time)
+(setq org-startup-indented nil) ;; org starts with org-indent-mode
+
+;;; This enables real indentation.
+(setq org-hide-leading-stars nil) ;; org hides the leading stars.
+(setq org-adapt-indentation nil) ;; Auto indents according to headings.
+(setq org-list-indent-offset 0) ;; indents the list by 2 spaces
+
+;;; This enable pretty entities mostly sub and superscript
+(setq org-pretty-entities t)
+#+end_src
+
+*** Org Superstar
+Org-Bullets successor, nicer bullets.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org-superstar :ensure t :demand t
+  :config
+  (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+end_src
 
 *** Org Settings
@@ -614,11 +605,22 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 (advice-add 'org-agenda :before 'pratik-setup-org-agenda-files-once)
 #+end_src
 
+*** Org Headers
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(custom-set-faces
+ '(org-level-1 ((t (:inherit outline-1 :height 1.15))))
+ '(org-level-2 ((t (:inherit outline-2 :height 1.125))))
+ '(org-level-3 ((t (:inherit outline-3 :height 1.1))))
+ '(org-level-4 ((t (:inherit outline-4 :height 1.075))))
+ '(org-level-5 ((t (:inherit outline-5 :height 1.05))))
+ '(org-level-6 ((t (:inherit outline-5 :height 1.025)))))
+#+end_src
+
 *** Org Pomodoro timer
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'org-mode-hook
           (lambda ()
-            (setq org-clock-sound "~/.emacs.d/.config/sounds/Interface.wav")))
+            (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")))
 #+end_src
 
 *** Org Cite & Citar
@@ -642,12 +644,6 @@ Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode
     Add review.org to org-agenda-files so tasks appear in your agenda.
     Use Hyperbole to quickly jump to notes via smart file links.
 This gives you spaced repetition with automatic rescheduling and seamless navigation.
-
-*** Org Headers
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(custom-set-faces
- '(org-level-1 ((t (:inherit outline-1 :height 1.2)))))
-#+end_src
 
 *** Org Latex Previews
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -818,6 +814,70 @@ You can use .dir-locals.el for each project. Repl is easy to configure but the s
   (pyvenv-mode 1))
 #+end_src
 
+** Spacious-Padding
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package spacious-padding :ensure t 
+  :init 
+        (setq spacious-padding-widths
+          `( :internal-border-width 8
+             :header-line-width 2
+             :mode-line-width 2
+             :tab-width 2
+             :right-divider-width 8
+             :scroll-bar-width ,(if x-toolkit-scroll-bars 25 6)
+             :left-fringe-width 12
+             :right-fringe-width 12))
+        
+        (setq spacious-padding-subtle-mode-line
+          '( :mode-line-active spacious-padding-subtle-mode-line-active
+             :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
+)
+
+(defvar pratik/gui-frame-count 0)
+
+(defun pratik/spacious-padding-enable-for-frame (frame)
+  (when (display-graphic-p frame)
+    (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
+    (with-selected-frame frame
+      (run-with-idle-timer
+       0 nil
+       (lambda ()
+         (require 'spacious-padding)
+         (unless (bound-and-true-p spacious-padding-mode)
+           (spacious-padding-mode 1)))))))
+
+(defun pratik/spacious-padding-disable-for-frame (frame)
+  (when (display-graphic-p frame)
+    (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
+    (when (= pratik/gui-frame-count 0)
+      (when (bound-and-true-p spacious-padding-mode)
+        (spacious-padding-mode -1)))))
+
+(if (daemonp)
+    (progn
+      (add-hook 'after-make-frame-functions
+                #'pratik/spacious-padding-enable-for-frame)
+      (add-hook 'delete-frame-functions
+                #'pratik/spacious-padding-disable-for-frame))
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq pratik/gui-frame-count 1)
+              (require 'spacious-padding)
+              (spacious-padding-mode 1))))
+#+end_src
+
+*** spacious-padding integration
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(with-eval-after-load 'spacious-padding
+  (defun pratik-modeline-spacious-indicators ()
+    "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
+      (if (bound-and-true-p spacious-padding-mode)
+          (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
+        (set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
+
+(add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
+#+end_src
+
 ** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -828,18 +888,16 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 
 ** Themes
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;;(use-package ef-themes :ensure t)
-;;(use-package doric-themes :ensure t)
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
-(use-package modus-themes :ensure t :demand t
-  :config
-  (setq modus-themes-mixed-fonts t)
-  (setq modus-themes-variable-pitch-ui t)
-  (load-theme 'modus-operandi t)
-  (set-face-attribute 'mode-line nil :box 'unspecified)
-  (set-face-attribute 'mode-line-inactive nil :box 'unspecified)
-  (set-face-attribute 'mode-line-active nil :box 'unspecified))
+;; (use-package ef-themes :ensure t :demand t)
+;; (use-package doric-themes :ensure t :demand t)
+(setq modus-themes-mixed-fonts t)
+(setq modus-themes-variable-pitch-ui t)
+(load-theme 'modus-operandi-tinted)
+(set-face-attribute 'mode-line nil :box 'unspecified)
+(set-face-attribute 'mode-line-inactive nil :box 'unspecified)
+(set-face-attribute 'mode-line-active nil :box 'unspecified)
 #+end_src
 
 ** Visual Upgrades
@@ -966,14 +1024,6 @@ Fix whitespaces on file save.
                                                     (global-whitespace-cleanup-mode 1)))))
 #+end_src
 
-** Xah Fly Keys
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;;(use-package xah-fly-keys :ensure t :demand t
-;;  :config
-;;  (setq xah-fly-keys-layout "qwerty")
-;;  (xah-fly-keys 1))
-#+end_src
-
 ** Xref
 This already works out of the box.
  "M-." . xref-find-definitions  ;; Go to definition
@@ -994,3 +1044,4 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 Few more things to add: Treemacs, vterm, git timemachine, server mode , perspective and beframe.(email client)
 After everything is done integrate with modeline. That should be it.
 
+    
