@@ -121,14 +121,6 @@ This makes sure the frame is made visible after dashboard is open.
 (add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t)))
 #+end_src
 
-*** Benchmarking Tools
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package esup :ensure t
-  :config (setq esup-depth 0))
-(use-package benchmark-init :ensure t ;; :demand t when you need to benchmark
-  :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
-#+end_src
-
 ** All the icons.
 This is an icon set that can be used with dashboard, dired, ibuffer and other Emacs programs.
 
@@ -148,12 +140,6 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
     :hook (marginalia-mode . #'nerd-icons-completion-marginalia-setup)
     :init
     (nerd-icons-completion-mode 1))
-#+end_src
-
-** Calendar
-install calfw and make it sync with google calendar. set it up when requried.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package calfw :ensure t)
 #+end_src
 
 ** Center-Document Mode
@@ -281,18 +267,6 @@ Adds the feature to make subtree a new file, and add files contents using a dyna
     denote-org-dblock-insert-backlinks
     denote-org-dblock-insert-missing-links
     denote-org-dblock-insert-files-as-headings))
-#+end_src
-
-*** Denote Consult
-adds integration of consult and denote.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package consult-denote
-  :ensure t
-  :bind
-  (("C-c n f" . consult-denote-find)
-   ("C-c n g" . consult-denote-grep))
-  :config
-  (consult-denote-mode 1))
 #+end_src
 
 ** Don't clutter
@@ -911,7 +885,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (setq visible-bell t)
 #+end_src
 
-** Vertico + orderless + marginilia + wgrep setup
+** Vertico + orderless + marginilia setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; The `vertico' package applies a vertical layout to the minibuffer.
 (use-package vertico :ensure t :demand t
@@ -931,38 +905,6 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (use-package orderless :ensure t :demand t
   :config
   (setq completion-styles '(orderless basic)))
-
-;; The `consult' package provides lots of commands that are enhanced
-;; variants of basic, built-in functionality.  One of the headline
-;; features of `consult' is its preview facility, where it shows in
-;; another Emacs window the context of what is currently matched in
-;; the minibuffer.
-(use-package consult
-  :ensure t
-  :bind (;; A recursive grep
-         ("M-s M-g" . consult-grep)
-         ;; Search for files names recursively
-         ("M-s M-f" . consult-find)
-         ;; Search through the outline (headings) of the file
-         ("M-s M-o" . consult-outline)
-         ;; Search the current buffer
-         ("M-s M-l" . consult-line)
-         ;; Switch to another buffer, or bookmarked file, or recently
-         ;; opened file.
-         ("M-s M-b" . consult-buffer)))
-
-;; The `wgrep' packages lets us edit the results of a grep search
-;; while inside a `grep-mode' buffer.  All we need is to toggle the
-;; editable mode, make the changes, and then type C-c C-c to confirm
-;; or C-c C-k to abort.
-;;
-;; Further reading: https://protesilaos.com/emacs/dotemacs#h:9a3581df-ab18-4266-815e-2edd7f7e4852
-(use-package wgrep
-  :ensure t
-  :bind ( :map grep-mode-map
-          ("e" . wgrep-change-to-wgrep-mode)
-          ("C-x C-q" . wgrep-change-to-wgrep-mode)
-          ("C-c C-c" . wgrep-finish-edit)))
 
 ;; The built-in `savehist-mode' saves minibuffer histories.  Vertico
 ;; can then use that information to put recently selected options at
@@ -1018,10 +960,11 @@ Tells you the key bindings
 ** Whitespace-cleanup
 Fix whitespaces on file save.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package whitespace-cleanup-mode :ensure t
- :config (add-hook 'after-save-hook (lambda ()
-                                              (when (not global-whitespace-cleanup-mode )
-                                                    (global-whitespace-cleanup-mode 1)))))
+(use-package whitespace
+  :ensure nil
+  :demand t
+  :config
+  (global-whitespace-cleanup-mode 1))
 #+end_src
 
 ** Xref
