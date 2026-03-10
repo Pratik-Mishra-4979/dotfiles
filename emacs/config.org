@@ -18,6 +18,17 @@ Lazy loading packages.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
 (setq package-enable-at-startup nil)
 (setq package-quickstart t) ;; combines all packages into a single package.
+(setq package-archives '(("melpa"        . "https://melpa.org/packages/")
+                         ("gnu"          . "https://elpa.gnu.org/packages/")
+                         ("nongnu"       . "https://elpa.nongnu.org/nongnu/")
+                         ("melpa-stable" . "https://stable.melpa.org/packages/")))
+(setq package-archive-priorities '(("gnu"    . 99)
+                                   ("nongnu" . 80)
+                                   ("melpa"  . 70)
+                                   ("melpa-stable" . 50)))
+
+(setq use-package-always-ensure t)
+(setq use-package-always-defer t)
 #+end_src
 
 ** Garbage collection threshold increase
@@ -83,9 +94,17 @@ Enabling Transparency
 *  init.el
 ** IMPORTANT PROGRAMS TO LOAD FIRST
 *** Adding the scripts directory to path
-    
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
+#+end_src
+
+*** Package Setup
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
+
+  (require 'use-package)
 #+end_src
 
 *** Defining Variables
@@ -104,14 +123,14 @@ Enabling Transparency
 
 *** Sourcing the scripts
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-  (require 'elpaca-setup);; The elpaca package manager
+  ;;(require 'elpaca-setup);; The elpaca package manager
   (require 'pratik-mode) ;; Pratik modes setup
   (require 'buffer-move)   ;; Buffer-move for better window management
 #+end_src
 
 *** Garbage collection reset and threshold increase
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(add-hook 'elpaca-after-init-hook (lambda () (setq gc-cons-threshold 20000000)
+(add-hook 'emacs-startup-hook (lambda () (setq gc-cons-threshold 20000000)
                                 (setq gc-cons-percentage 0.1)))
 #+end_src
 
@@ -209,24 +228,27 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 ;; ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
 ;;
 ;;   Loading time : %s
-;;   Packages     : loading...
+;;   Packages     : %s
 ;;
 "
-           (emacs-init-time))))
-
-(add-hook
- 'elpaca-after-init-hook
- (lambda ()
-   (with-current-buffer "*scratch*"
-     (save-excursion
-       (goto-char (point-min))
-       (re-search-forward "Packages     : .*")
-       (replace-match
-        (format "Packages     : %s"
-                (cdr (assq 'finished elpaca--status-counts)))))
-     (goto-char (point-max)))))
+           (emacs-init-time)
+           (number-to-string (length package-activated-list)))))
 
 (message (emacs-init-time))
+
+;; (add-hook
+;;  'elpaca-after-init-hook
+;;  (lambda ()
+;;    (with-current-buffer "*scratch*"
+;;      (save-excursion
+;;        (goto-char (point-min))
+;;        (re-search-forward "Packages     : .*")
+;;        (replace-match
+;;         (format "Packages     : %s"
+;;                 (cdr (assq 'finished elpaca--status-counts)))))
+;;      (goto-char (point-max)))))
+
+;; (message (emacs-init-time))
 #+end_src
 
 ** Denote
@@ -551,7 +573,7 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 ;;; This enables real indentation.
 (setq org-hide-leading-stars nil) ;; org hides the leading stars.
 (setq org-adapt-indentation nil) ;; Auto indents according to headings.
-(setq org-list-indent-offset 0) ;; indents the list by 2 spaces
+(setq org-list-indent-offset 0) ;; indents the list by n spaces
 
 ;;; This enable pretty entities mostly sub and superscript
 (setq org-pretty-entities t)
@@ -960,11 +982,7 @@ Tells you the key bindings
 ** Whitespace-cleanup
 Fix whitespaces on file save.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package whitespace
-  :ensure nil
-  :demand t
-  :config
-  (global-whitespace-cleanup-mode 1))
+(add-hook 'before-save-hook #'whitespace-cleanup)
 #+end_src
 
 ** Xref
