@@ -385,23 +385,13 @@ Eglot (built-in client for the language server protocol)
   :defer t
   :commands (elfeed elfeed-update)
 
-  :preface
-  ;; When i was using q to kill the buffer, my hook was being called and mode change was initiated but immediately after that buffer is killed and change cannot happen as when a window is killed all the process ocuuring. This did not happen when i killed the buffer from M-x elfeed-kill-buffer as the code gets executed from minibuffer which is still active.
-  (defun pratik/elfeed-kill-buffer ()
-    "Kill Elfeed buffer and restore pratik-mode afterwards safely."
-    (interactive)
-    (elfeed-kill-buffer)
-    ;;This delays the time when restore command is executed to a little later till the buffer is killed.
-    (run-at-time 0 nil #'pratik--maybe-restore-pratik-mode))
-
   :bind (("C-c r" . elfeed)
 	 :map elfeed-search-mode-map
 	 ("n" . elfeed-next-entry)
 	 ("q" . pratik/elfeed-kill-buffer)
 	 ("p" . elfeed-previous-entry))
 
-  :hook ((elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
-	 (elfeed-search-mode . pratik--maybe-disable-pratik-mode)) ;; Turns off pratik mode when elfeed starts.
+  :hook (elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
   ;; (elfeed-show-mode . (lambda () (display-line-numbers-mode 0))) ;; Turn off line numbers in elfeed-show-mode.
   ;; (elfeed-mode . (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes.
 
