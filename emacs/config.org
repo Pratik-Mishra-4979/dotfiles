@@ -6,13 +6,262 @@
 *  early-init.el
 ** Frame Settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(setq frame-inhibit-implied-resize t)
 (push '(visibility . nil) default-frame-alist)
 ;; Always start emacs and frames maximized.
 ;; (add-to-list 'default-frame-alist '(fullscreen . maximized))
 #+end_src
 
-** Elpaca package setup
+** Garbage collection threshold increase
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
+#+end_src
+
+** Performance boost
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+(blink-cursor-mode -1) ;; disable blinking cursor
+(global-visual-line-mode t)  ;; Enable line wrap
+;;; this makes the visual line mode wrap according to prefix
+(setq global-visual-wrap-prefix-mode t)
+(setq help-window-select t) ;; always select the help window
+
+;;; Better Window Management handling
+(setq frame-resize-pixelwise t
+      frame-inhibit-implied-resize t
+      frame-title-format
+      '(:eval
+	(let ((project (project-current)))
+	  (if project
+	      (concat "Emacs - [p] " (project-name project))
+	    (concat "Emacs - " (buffer-name))))))
+
+;;; Miscellaneous
+
+(set-language-environment "UTF-8")
+
+;; Increase how much is read from processes in a single chunk
+(setq read-process-output-max (* 2 1024 1024))  ; 1024kb
+
+(setq process-adaptive-read-buffering nil)
+
+;; Don't ping things that look like domain names.
+(setq ffap-machine-p-known 'reject)
+
+;; Disable warnings from the legacy advice API. They aren't useful.
+(setq ad-redefinition-action 'accept)
+
+;;; Performance: Miscellaneous options
+
+;; Font compacting can be very resource-intensive, especially when rendering
+;; icon fonts on Windows. This will increase memory usage.
+(setq inhibit-compacting-font-caches t)
+
+(when (not noninteractive)
+  ;; Resizing the Emacs frame can be costly when changing the font. Disable this
+  ;; to improve startup times with fonts larger than the system default.
+  (setq frame-resize-pixelwise t)
+
+  ;; Without this, Emacs will try to resize itself to a specific column size
+  (setq frame-inhibit-implied-resize t)
+
+  ;; A second, case-insensitive pass over `auto-mode-alist' is time wasted.
+  ;; No second pass of case-insensitive search over auto-mode-alist.
+  (setq auto-mode-case-fold nil)
+
+  ;; Reduce *Message* noise at startup. An empty scratch buffer (or the
+  ;; dashboard) is more than enough, and faster to display.
+  (setq inhibit-startup-screen t
+	inhibit-startup-echo-area-message user-login-name)
+  (setq initial-buffer-choice t
+	inhibit-startup-buffer-menu t
+	inhibit-x-resources t)
+
+  ;; Disable bidirectional text scanning for a modest performance boost.
+  (setq-default bidi-display-reordering 'left-to-right
+		bidi-paragraph-direction 'left-to-right)
+
+  ;; Give up some bidirectional functionality for slightly faster re-display.
+  (setq bidi-inhibit-bpa t)
+
+  ;; Remove "For information about GNU Emacs..." message at startup
+  (advice-add 'display-startup-echo-area-message :override #'ignore)
+
+  ;; Suppress the vanilla startup screen completely. We've disabled it with
+  ;; `inhibit-startup-screen', but it would still initialize anyway.
+  (advice-add 'display-startup-screen :override #'ignore)
+
+  ;; Unset command line options irrelevant to the current OS. These options
+  ;; are still processed by `command-line-1` but have no effect.
+  (unless (eq system-type 'darwin)
+    (setq command-line-ns-option-alist nil))
+  (unless (memq initial-window-system '(x pgtk))
+    (setq command-line-x-option-alist nil)))
+
+;;; Performance: File-name-handler-alist
+
+(defvar my--old-file-name-handler-alist (default-toplevel-value
+					 'file-name-handler-alist))
+
+(defun my--respect-file-handlers (fn args-left)
+  "Respect file handlers.
+FN is the function and ARGS-LEFT is the same argument as `command-line-1'.
+Emacs processes command-line files very early in startup. These files may
+include special paths like TRAMP paths, so restore `file-name-handler-alist' for
+this stage of initialization."
+  (let ((file-name-handler-alist (if args-left
+				     my--old-file-name-handler-alist
+				   file-name-handler-alist)))
+    (funcall fn args-left)))
+
+(defun my--restore-file-name-handler-alist ()
+  "Restore `file-name-handler-alist'."
+  (set-default-toplevel-value
+   'file-name-handler-alist
+   ;; Merge instead of overwrite to preserve any changes made since startup.
+   (delete-dups (append file-name-handler-alist
+			my--old-file-name-handler-alist))))
+
+
+;; Determine the state of bundled libraries using calc-loaddefs.el. If
+;; compressed, retain the gzip handler in `file-name-handler-alist`. If
+;; compiled or neither, omit the gzip handler during startup for improved
+;; startup and package load time.
+(set-default-toplevel-value
+ 'file-name-handler-alist
+ (if (locate-file-internal "calc-loaddefs.el" load-path)
+     nil
+   (list (rassq 'jka-compr-handler
+		my--old-file-name-handler-alist))))
+
+;; Ensure the new value persists through any current let-binding.
+(put 'file-name-handler-alist 'initial-value
+     my--old-file-name-handler-alist)
+
+;; Emacs processes command-line files very early in startup. These files may
+;; include special paths TRAMP. Restore `file-name-handler-alist'.
+(advice-add 'command-line-1 :around #'my--respect-file-handlers)
+
+(add-hook 'emacs-startup-hook #'my--restore-file-name-handler-alist
+	  101)
+
+;;; Performance: Inhibit redisplay
+
+(defun my--reset-inhibit-redisplay ()
+  "Reset inhibit redisplay."
+  (setq-default inhibit-redisplay nil)
+  (remove-hook 'post-command-hook #'my--reset-inhibit-redisplay))
+
+(when (not noninteractive)
+  ;; Suppress redisplay and redraw during startup to avoid delays and
+  ;; prevent flashing an unstyled Emacs frame.
+  (setq-default inhibit-redisplay t)
+  (add-hook 'post-command-hook #'my--reset-inhibit-redisplay -100))
+
+;;; Performance: Inhibit message
+
+(defun my--reset-inhibit-message ()
+  "Reset inhibit message."
+  (setq-default inhibit-message nil)
+  (remove-hook 'post-command-hook #'my--reset-inhibit-message))
+
+(when (not noninteractive)
+  (setq-default inhibit-message t)
+  (add-hook 'post-command-hook #'my--reset-inhibit-message -100))
+
+;;; Performance: Disable mode-line during startup
+
+(defvar-local my--hidden-mode-line nil
+  "Store the buffer-local value of `mode-line-format' during startup.")
+
+(when (not noninteractive)
+  (put 'mode-line-format
+       'initial-value (default-toplevel-value 'mode-line-format))
+  (setq-default mode-line-format nil)
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (when (local-variable-p 'mode-line-format)
+	(setq my--hidden-mode-line mode-line-format)
+	(setq mode-line-format nil)))))
+
+;;; Restore values
+(defun my--startup-load-user-init-file (fn &rest args)
+  "Ensure UI state is restored after startup, even on error."
+  (unwind-protect
+      ;; Run normal init loading
+      (apply fn args)
+
+    ;; Always restore message and redisplay
+    (setq-default inhibit-message nil)
+    (setq-default inhibit-redisplay nil)
+
+    ;; Restore mode-line (global default)
+    (unless (default-toplevel-value 'mode-line-format)
+      (setq-default mode-line-format
+		    (get 'mode-line-format 'initial-value)))
+
+    ;; Restore mode-line in existing buffers
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+	(when (local-variable-p 'my--hidden-mode-line)
+	  (setq mode-line-format my--hidden-mode-line)
+	  (kill-local-variable 'my--hidden-mode-line))))))
+
+(advice-add 'startup--load-user-init-file :around
+	    #'my--startup-load-user-init-file)
+
+;;; UI elements
+
+;; Disable startup screens and messages
+(setq inhibit-splash-screen t)
+
+;; I intentionally avoid calling `menu-bar-mode', `tool-bar-mode', and
+;; `scroll-bar-mode' because manipulating frame parameters can trigger or queue
+;; a superfluous and potentially expensive frame redraw at startup, depending
+;; on the window system. The variables must also be set to `nil' so users don't
+;; have to call the functions twice to re-enable them.
+;;; UI: Disable menu bar, tool bar, scroll bars efficiently
+
+;; Menu bar
+(push '(menu-bar-lines . 0) default-frame-alist)
+(setq menu-bar-mode nil)
+
+;; Tool bar (prevent setup during startup, then restore safely)
+(defun my--setup-toolbar (&rest _)
+  (when (fboundp 'tool-bar-setup)
+    (advice-remove 'tool-bar-setup #'ignore)
+    (when (bound-and-true-p tool-bar-mode)
+      (tool-bar-setup))))
+
+(when (fboundp 'tool-bar-setup)
+  ;; Prevent toolbar initialization during startup
+  (advice-add 'tool-bar-setup :override #'ignore)
+
+  ;; Restore after init finishes
+  (add-hook 'emacs-startup-hook #'my--setup-toolbar))
+
+(push '(tool-bar-lines . 0) default-frame-alist)
+(setq tool-bar-mode nil)
+
+;; Scroll bars
+(push '(vertical-scroll-bars . nil) default-frame-alist)
+(push '(horizontal-scroll-bars . nil) default-frame-alist)
+(setq scroll-bar-mode nil)
+
+;; Disable GUIs because they are inconsistent across systems, desktop
+;; environments, and themes, and they don't match the look of Emacs.
+(setq use-file-dialog nil)
+(setq use-dialog-box nil)
+
+;;; Security
+(setq gnutls-verify-error t)  ; Prompts user if there are certificate issues
+(setq tls-checktrust t)  ; Ensure SSL/TLS connections undergo trust verification
+(setq gnutls-min-prime-bits 3072)  ; Stronger GnuTLS encryption
+
+;; Single VC backend inscreases booting speed
+(setq vc-handled-backends '(Git))
+#+end_src
+
+** package setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
 (setq package-enable-at-startup nil)
 (setq package-quickstart t) ;; combines all packages into a single package.
@@ -25,60 +274,12 @@
 				   ("melpa"  . 70)
 				   ("melpa-stable" . 50)))
 
+;; This results in a more compact output that emphasizes performance
+(setq use-package-expand-minimally t)
+(setq use-package-minimum-reported-time 0.1)
+(setq use-package-enable-imenu-support t)
 (setq use-package-always-defer t)
-#+end_src
-
-** Garbage collection threshold increase
-#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(setq gc-cons-threshold 100000000)
-(setq gc-cons-percentage 0.6)
-#+end_src
-
-** Language Environment
-#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(set-language-environment "UTF-8")
-#+end_src
-
-** Performance boost
-#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(menu-bar-mode -1)           ;; Disable the menu bar
-(tool-bar-mode -1)           ;; Disable the tool bar
-;;(global-display-line-numbers-mode 1) ;; Display line numbers
-(blink-cursor-mode -1) ;; disable blinking cursor
-(global-visual-line-mode t)  ;; Enable truncated lines
-;;; this makes the visual line mode wrap according to prefix
-(setq global-visual-wrap-prefix-mode t)
-(setq frame-title-format "") ;; Disable the title in emacs frame.
-(setq help-window-select t) ;; always select the help window
-
-;; Disable GUIs because they are inconsistent across systems, desktop environments, and themes, and they don't match the look of Emacs.
-(setq use-file-dialog nil)
-(setq use-dialog-box nil)
-
-;; Increase how much is read from processes in a single chunk
-(setq read-process-output-max (* 2 1024 1024))  ; 1024kb
-(setq process-adaptive-read-buffering nil)
-
-(setq ffap-machine-p-known 'reject);; Don't ping things that look like domain names.
-
-;; Reduce *Message* noise at startup. An empty scratch buffer (or thedashboard) is more than enough, and faster to display.
-  (setq inhibit-startup-screen t
-	inhibit-startup-echo-area-message user-login-name)
-  (setq initial-buffer-choice nil
-	inhibit-startup-buffer-menu t
-	inhibit-x-resources t)
-
-(setq inhibit-compacting-font-caches t) ;; Font compacting is useless unless you use multiple languages.
-
-;; Disable bidirectional text scanning for a modest performance boost.
-(setq-default bidi-display-reordering 'left-to-right
-		bidi-paragraph-direction 'left-to-right)
-
-(setq bidi-inhibit-bpa t) ;; Give up some bidirectional functionality for slightly faster re-display.
-
-(setq inhibit-splash-screen t) ;; Disable startup screens and messages
- (advice-add 'display-startup-echo-area-message :override #'ignore) ;; Remove "For information about GNU Emacs..." message at startup
- (advice-add 'display-startup-screen :override #'ignore)  ;; Suppress the vanilla startup screen completely. We've disabled it with`inhibit-startup-screen', but it would still initialize anyway.
+(setq use-package-compute-statistics t)
 #+end_src
 
 ** Transparency
@@ -104,12 +305,14 @@ Enabling Transparency
 #+end_src
 
 *** Defining Variables
+AporeticSerifMonoNerdFont
+Aporetic Serif
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq user-full-name "Pratik Mishra"
       user-mail-address "pratikmishra4979@gmail.com")
 (setq user-fixed-pitch-font "AporeticSerifMonoNerdFont")
 (setq user-variable-pitch-font "Aporetic Serif")
-(setq user-font-size 15)
+(setq user-font-size 14)
 #+end_src
 
 *** Setting the default-directory
@@ -184,8 +387,7 @@ Enabling Transparency
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'emacs-startup-hook
 	  (lambda ()
-	    (setq
-		  gc-cons-threshold 20000000
+	    (setq gc-cons-threshold (* 100 1024 1024)
 		  gc-cons-percentage 0.1)))
 #+end_src
 
@@ -538,35 +740,35 @@ This adds various utilitites to emacs without changing my system path.
 
 ** Magit
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package transient :ensure t
-  :config
-  (setq transient-show-popup 0.5))
+;; (use-package transient :ensure t
+;;   :config
+;;   (setq transient-show-popup 0.5))
 
-(use-package magit
-  :ensure t
-  :bind
-  ( :map global-map
-    ("C-c g" . magit-status)
-    :map magit-mode-map
-    ("C-w" . nil)
-    ("M-w" . nil))
-  :init
-  (setq magit-define-global-key-bindings nil)
-  (setq magit-section-visibility-indicator '(magit-fringe-bitmap> . magit-fringe-bitmapv))
-  :config
-  (setq git-commit-summary-max-length 50)
-  (setq git-commit-style-convention-checks '(non-empty-second-line))
-  (setq magit-diff-refine-hunk t)
-  ;; Show icons for files in the Magit status and other buffers.
-  (with-eval-after-load 'magit
-    (setq magit-format-file-function #'magit-format-file-nerd-icons)))
+;; (use-package magit
+;;   :ensure t
+;;   :bind
+;;   ( :map global-map
+;;     ("C-c g" . magit-status)
+;;     :map magit-mode-map
+;;     ("C-w" . nil)
+;;     ("M-w" . nil))
+;;   :init
+;;   (setq magit-define-global-key-bindings nil)
+;;   (setq magit-section-visibility-indicator '(magit-fringe-bitmap> . magit-fringe-bitmapv))
+;;   :config
+;;   (setq git-commit-summary-max-length 50)
+;;   (setq git-commit-style-convention-checks '(non-empty-second-line))
+;;   (setq magit-diff-refine-hunk t)
+;;   ;; Show icons for files in the Magit status and other buffers.
+;;   (with-eval-after-load 'magit
+;;     (setq magit-format-file-function #'magit-format-file-nerd-icons)))
 
-(use-package magit-repos
-  :ensure nil ; part of `magit'
-  :commands (magit-list-repositories)
-  :init
-  (setq magit-repository-directories
-	'(("~/Git/Projects" . 1))))
+;; (use-package magit-repos
+;;   :ensure nil ; part of `magit'
+;;   :commands (magit-list-repositories)
+;;   :init
+;;   (setq magit-repository-directories
+;;	'(("~/Git/Projects" . 1))))
 #+end_src
 
 ** Modeline
@@ -657,7 +859,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
   ;; Org-latex formatting
   (setq org-format-latex-options
-      (plist-put org-format-latex-options :scale 1.5))
+      (plist-put org-format-latex-options :scale 1.3))
 
   ;; Babel
   (org-babel-do-load-languages
@@ -671,6 +873,13 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 (defvar my/post-startup-packages
   '(nerd-icons
     org
+    org-macs
+    org-compat
+    org-element
+    org-src
+    org-fold
+    org-agenda
+    org-capture
     org-superstar
     citar
     org-tempo)
@@ -852,66 +1061,66 @@ You can use .dir-locals.el for each project. Repl is easy to configure but the s
 
 ** Spacious-Padding
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package spacious-padding :ensure t
-  :init
-	(setq spacious-padding-widths
-	  `( :internal-border-width 8
-	     :header-line-width 2
-	     :mode-line-width 2
-	     :tab-width 2
-	     :right-divider-width 8
-	     :scroll-bar-width ,(if x-toolkit-scroll-bars 25 6)
-	     :left-fringe-width 12
-	     :right-fringe-width 12))
+;; (use-package spacious-padding :ensure t
+;;   :init
+;;	(setq spacious-padding-widths
+;;	  `( :internal-border-width 8
+;;	     :header-line-width 2
+;;	     :mode-line-width 2
+;;	     :tab-width 2
+;;	     :right-divider-width 8
+;;	     :scroll-bar-width ,(if x-toolkit-scroll-bars 8 6)
+;;	     :left-fringe-width 12
+;;	     :right-fringe-width 12))
 
-	(setq spacious-padding-subtle-mode-line
-	  '( :mode-line-active spacious-padding-subtle-mode-line-active
-	     :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
-)
+;;	(setq spacious-padding-subtle-mode-line
+;;	  '( :mode-line-active spacious-padding-subtle-mode-line-active
+;;	     :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
+;; )
 
-(defvar pratik/gui-frame-count 0)
+;; (defvar pratik/gui-frame-count 0)
 
-(defun pratik/spacious-padding-enable-for-frame (frame)
-  (when (display-graphic-p frame)
-    (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
-    (with-selected-frame frame
-      (run-with-idle-timer
-       0 nil
-       (lambda ()
-	 (require 'spacious-padding)
-	 (unless (bound-and-true-p spacious-padding-mode)
-	   (spacious-padding-mode 1)))))))
+;; (defun pratik/spacious-padding-enable-for-frame (frame)
+;;   (when (display-graphic-p frame)
+;;     (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
+;;     (with-selected-frame frame
+;;       (run-with-idle-timer
+;;        0 nil
+;;        (lambda ()
+;;	 (require 'spacious-padding)
+;;	 (unless (bound-and-true-p spacious-padding-mode)
+;;	   (spacious-padding-mode 1)))))))
 
-(defun pratik/spacious-padding-disable-for-frame (frame)
-  (when (display-graphic-p frame)
-    (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
-    (when (= pratik/gui-frame-count 0)
-      (when (bound-and-true-p spacious-padding-mode)
-	(spacious-padding-mode -1)))))
+;; (defun pratik/spacious-padding-disable-for-frame (frame)
+;;   (when (display-graphic-p frame)
+;;     (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
+;;     (when (= pratik/gui-frame-count 0)
+;;       (when (bound-and-true-p spacious-padding-mode)
+;;	(spacious-padding-mode -1)))))
 
-(if (daemonp)
-    (progn
-      (add-hook 'after-make-frame-functions
-		#'pratik/spacious-padding-enable-for-frame)
-      (add-hook 'delete-frame-functions
-		#'pratik/spacious-padding-disable-for-frame))
-  (add-hook 'emacs-startup-hook
-	    (lambda ()
-	      (setq pratik/gui-frame-count 1)
-	      (require 'spacious-padding)
-	      (spacious-padding-mode 1))))
+;; (if (daemonp)
+;;     (progn
+;;       (add-hook 'after-make-frame-functions
+;;		#'pratik/spacious-padding-enable-for-frame)
+;;       (add-hook 'delete-frame-functions
+;;		#'pratik/spacious-padding-disable-for-frame))
+;;   (add-hook 'emacs-startup-hook
+;;	    (lambda ()
+;;	      (setq pratik/gui-frame-count 1)
+;;	      (require 'spacious-padding)
+;;	      (spacious-padding-mode 1))))
 #+end_src
 
 *** spacious-padding integration
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(with-eval-after-load 'spacious-padding
-  (defun pratik-modeline-spacious-indicators ()
-    "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
-      (if (bound-and-true-p spacious-padding-mode)
-	  (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
-	(set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
+;; (with-eval-after-load 'spacious-padding
+;;   (defun pratik-modeline-spacious-indicators ()
+;;     "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
+;;       (if (bound-and-true-p spacious-padding-mode)
+;;	  (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
+;;	(set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
 
-(add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
+;; (add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
 #+end_src
 
 ** Shell
@@ -922,18 +1131,40 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 (setq explicit-bash-args '("--login" "-i"))
 #+end_src
 
+** Scrolling
+Kept to try out smooth scrolling. Didn't notice any improvement in scrolling when installed.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (use-package ultra-scroll
+;;   :vc (:url "https://github.com/jdtsmith/ultra-scroll") ; if desired (emacs>=v30)
+;;   :init
+;;   (setq scroll-conservatively 3 ; or whatever value you prefer, since v0.4
+;;	scroll-margin 0)        ; important: scroll-margin>0 not yet supported
+;;   :config
+;;   (ultra-scroll-mode 1))
+#+end_src
+
 ** Themes
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
 ;; (use-package ef-themes :ensure t :demand t)
-;; (use-package doric-themes :ensure t :demand t)
+;; (use-package doric-themes
+;;   :vc (:url "https://github.com/protesilaos/doric-themes")
+;;   :ensure t :demand t)
 (setq modus-themes-mixed-fonts t)
 (setq modus-themes-variable-pitch-ui t)
-(load-theme 'modus-operandi-tinted)
+(load-theme 'modus-operandi)
 (set-face-attribute 'mode-line nil :box 'unspecified)
-(set-face-attribute 'mode-line-inactive nil :box 'unspecified)
-(set-face-attribute 'mode-line-active nil :box 'unspecified)
+(let ((bg (face-background 'default)))
+(set-face-attribute 'mode-line-inactive nil
+		    :box 'unspecified
+		    :background bg)
+(set-face-attribute 'fringe nil
+		    :background bg
+		    :foreground bg))
+(set-face-attribute 'mode-line-active nil
+		    :box 'unspecified
+		    :background "#f2f2f2")
 #+end_src
 
 ** Visual Upgrades
@@ -1000,10 +1231,9 @@ Tells you the key bindings
 	which-key-min-display-lines 6
 	which-key-side-window-slot -10
 	which-key-side-window-max-height 0.25
-	which-key-idle-delay 0.1
-	which-key-page-delay 0.1
+	which-key-idle-delay 1
 	which-key-max-description-length 25
-	which-key-allow-imprecise-window-fit t
+	which-key-allow-imprecise-window-fit nil
 	which-key-separator " -> "))
 
 ;; which-key-posframe (load only when which-key is active)
@@ -1011,7 +1241,7 @@ Tells you the key bindings
   :ensure t
   :after which-key
   :hook (which-key-mode . which-key-posframe-mode))
-#+end_src
+#+END_src
 
 ** Whitespace-cleanup
 Fix whitespaces on file save.
@@ -1038,3 +1268,5 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 
 Few more things to add: Treemacs, vterm, git timemachine, server mode , perspective and beframe.(email client)
 After everything is done integrate with modeline. That should be it.
+
+TODO: remove scrollbar and fringe mode, setup padding manually instead of spacious padding. try a font with smaller height. remove citar and its dependencies. move to emacs completions instead of vertico etc. (for version 31)
