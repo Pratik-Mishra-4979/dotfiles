@@ -716,7 +716,13 @@ downloaded hunspell
       (format "%s-%d" user-fixed-pitch-font user-font-size))
 
 (add-to-list 'default-frame-alist `(font . ,user-frame-font))
-(setq-default line-spacing 0.06) ;;default value was 0.1
+(setq-default line-spacing 0.05) ;;default value was 0.06, 0.1
+
+;; TODO: Rewrite the init in the order of execution.
+;;frame size is dependent upon font size at frame creation. so if you set this before font setting then the frame size for emacsclient and emacs are different.
+(setq default-frame-alist
+      '((width . 64)
+	(height . 22)))
 #+end_src
 
 ** Git bash utls
@@ -736,39 +742,6 @@ This adds various utilitites to emacs without changing my system path.
 
   (unless (member xournal-bin exec-path)
     (add-to-list 'exec-path xournal-bin)))
-#+end_src
-
-** Magit
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package transient :ensure t
-;;   :config
-;;   (setq transient-show-popup 0.5))
-
-;; (use-package magit
-;;   :ensure t
-;;   :bind
-;;   ( :map global-map
-;;     ("C-c g" . magit-status)
-;;     :map magit-mode-map
-;;     ("C-w" . nil)
-;;     ("M-w" . nil))
-;;   :init
-;;   (setq magit-define-global-key-bindings nil)
-;;   (setq magit-section-visibility-indicator '(magit-fringe-bitmap> . magit-fringe-bitmapv))
-;;   :config
-;;   (setq git-commit-summary-max-length 50)
-;;   (setq git-commit-style-convention-checks '(non-empty-second-line))
-;;   (setq magit-diff-refine-hunk t)
-;;   ;; Show icons for files in the Magit status and other buffers.
-;;   (with-eval-after-load 'magit
-;;     (setq magit-format-file-function #'magit-format-file-nerd-icons)))
-
-;; (use-package magit-repos
-;;   :ensure nil ; part of `magit'
-;;   :commands (magit-list-repositories)
-;;   :init
-;;   (setq magit-repository-directories
-;;	'(("~/Git/Projects" . 1))))
 #+end_src
 
 ** Modeline
@@ -835,7 +808,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
    ;; Org styling
    org-hide-emphasis-markers t
    org-pretty-entities t
-   org-use-sub-superscripts t
+   org-use-sub-superscripts nil ;; avoid using sub-superscripts
 
    ;; indentation behaviour
    org-startup-indented nil
@@ -881,7 +854,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     org-agenda
     org-capture
     org-superstar
-    citar
     org-tempo)
   "Packages to load incrementally after startup.")
 
@@ -908,19 +880,6 @@ Org-Bullets successor, nicer bullets.
   (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+end_src
 
-*** Org Cite & Citar
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package citar :ensure t
-  :after org
-  :config
-  (setq org-cite-global-bibliography '("~/references/library.bib"))
-  (setq citar-bibliography '("~/notes/references/my library/my library.bib"))
-
-  (setq org-cite-insert-processor 'citar
-	org-cite-follow-processor 'citar
-	org-cite-activate-processor 'citar))
-#+end_src
-
 *** Org drill
 Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
     Create TODOs in review.org linking to Denote notes.
@@ -931,63 +890,115 @@ Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode
     Use Hyperbole to quickly jump to notes via smart file links.
 This gives you spaced repetition with automatic rescheduling and seamless navigation.
 
-*** Org Latex Previews
+*** Org DnD image Advice
+This is a small code to automatically trim handwritten notes, when adding them.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(add-hook 'org-mode-hook
-	  (lambda ()
-	    (add-hook 'after-save-hook
-		      (lambda ()
-			(when (and (derived-mode-p 'org-mode)
-				   (save-excursion
-				     (goto-char (point-min))
-				     (re-search-forward "^#\\+STARTUP:.*latexpreview" nil t)))
-			  (org-latex-preview)))
-		      nil t))) ;; make after-save-hook buffer-local
-#+end_src
+;;;; Config
 
-*** Org mode drag and drop mode override
-This is a small code to automatically trim photos, when adding to notes.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; Define the folder where processed images will be stored
-(defvar my/org-image-folder "~/notes/images/"
-  "Folder where images dropped into org are copied and processed.")
+(defvar my/org-image-folder "~/notes/images/")
+(defvar my/dnd-already-handled nil)
+
+;;;; Utilities
+
+(defun my/is-image-file (file)
+  (let ((ext (downcase (or (file-name-extension file) ""))))
+    (member ext '("png" "jpg" "jpeg" "gif" "bmp" "tiff" "webp" "svg"))))
+
+(defun my/org--ensure-image-dir ()
+  (unless (file-directory-p my/org-image-folder)
+    (make-directory my/org-image-folder t)))
+
+(defun my/org--unique-file (filename)
+  (let* ((base (file-name-base filename))
+	 (ext  (file-name-extension filename))
+	 (ts   (format-time-string "%Y%m%d_%H%M%S")))
+    (format "%s_%s.%s" base ts ext)))
+
+;;;; Image handling
 
 (defun my/org-dnd-handle-image (uri)
-  "Process image dropped into Org with ImageMagick: trim whitespace and make white transparent.
-The processed image is saved to `my/org-image-folder`."
   (let* ((file (dnd-get-local-file-name uri))
-	 (filename (file-name-nondirectory file))
-	 (new-path (expand-file-name filename my/org-image-folder))
-	 (file-dir (file-name-directory file)))
-    ;; Create the image folder if it doesn't exist
-    (unless (file-directory-p my/org-image-folder)
-      (make-directory my/org-image-folder t))
-    (message "[my/org-dnd-handle-image] Processing %s -> %s" file new-path)
-    ;; Use ImageMagick to process the image
-    (shell-command
-     (format "cd \"%s\" && magick \"%s\" -fuzz 20%% -trim +repage -strip \"%s\""
-	     file-dir file new-path))
-    ;; Insert a link to the new image
+	 (filename (my/org--unique-file
+		    (file-name-nondirectory file)))
+	 (new-path (expand-file-name filename my/org-image-folder)))
+
+    (my/org--ensure-image-dir)
+
+    (call-process
+     "magick" nil nil nil
+     file
+     "-fuzz" "20%"
+     "-trim" "+repage"
+     "-strip"
+     new-path)
+
     (insert (org-link-make-string (concat "file:" new-path)))))
 
-;; Add a custom choice to the DND menu
-(advice-add 'org--dnd-rmc :around
-	    (lambda (orig prompt choices)
-	      (message "[org--dnd-rmc advice] Choices: %s" choices)
-	      (funcall orig prompt
-		       (append choices
-			       '((?c "this is a dummy choice" . private))))))
+(defun my/org-dnd-insert-raw (uri)
+  (let ((file (dnd-get-local-file-name uri)))
+    (insert (org-link-make-string (concat "file:" file)))))
 
-;; Handle the custom 'private' DND action
+;;;; Menu
+
+(defun my/org-dnd-image-menu (uri)
+  (pcase (read-char-choice
+	  "[c] clean+insert  [i] insert raw  [o] org default: "
+	  '(?c ?i ?o))
+    (?c (my/org-dnd-handle-image uri) t)
+    (?i (my/org-dnd-insert-raw uri) t)
+    (?o nil))) ;; fallback
+
+;;;; Core interception
+
+(defun my/dnd-handle-multiple-urls (orig &rest args)
+  "Intercept DND in Org mode for images only."
+
+  ;; IMPORTANT: reset state per event
+  (setq my/dnd-already-handled nil)
+
+  (let* ((window (nth 0 args))
+	 (urls   (nth 1 args)))
+    (with-current-buffer (window-buffer window)
+      (if (and (derived-mode-p 'org-mode)
+	       (= (length urls) 1))
+	  (let* ((uri  (car urls))
+		 (file (dnd-get-local-file-name uri)))
+	    (if (and file (my/is-image-file file))
+		(let ((handled (my/org-dnd-image-menu uri)))
+		  (if handled
+		      (setq my/dnd-already-handled t)
+		    (apply orig args)))
+	      (apply orig args)))
+	(apply orig args)))))
+
+;;;; Block Org fallback ONLY when handled
+
+(defun my/org-dnd-block-fallback (orig &rest args)
+  (if my/dnd-already-handled
+      (progn
+	(setq my/dnd-already-handled nil)
+	nil) ;; block Org handler
+    (apply orig args)))
+
+;;;; Install
+
+(advice-add 'dnd-handle-multiple-urls :around
+	    #'my/dnd-handle-multiple-urls)
+
 (with-eval-after-load 'org
   (advice-add 'org--dnd-local-file-handler :around
-	      (lambda (orig url action &optional separator)
-		(message "[org--dnd-local-file-handler advice] URL: %s, Action: %s" url action)
-		(if (eq action 'private)
-		    (progn
-		      (message "[org--dnd-local-file-handler] Handling private action, calling custom handler")
-		      (my/org-dnd-handle-image url))
-		  (funcall orig url action separator)))))
+	      #'my/org-dnd-block-fallback))
+#+end_src
+
+*** Org-draw
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package edraw-org
+  :vc (:url "https://github.com/misohena/el-easydraw")
+  :after org
+  :demand t
+  :mode ("\\.edraw\\.svg\\'" . edraw-mode)
+  :init
+  (autoload 'edraw "edraw-mode" nil t))
 #+end_src
 
 *** org-source-code programming support
@@ -1059,88 +1070,12 @@ You can use .dir-locals.el for each project. Repl is easy to configure but the s
   :hook (python-mode . pyvenv-mode))
 #+end_src
 
-** Spacious-Padding
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package spacious-padding :ensure t
-;;   :init
-;;	(setq spacious-padding-widths
-;;	  `( :internal-border-width 8
-;;	     :header-line-width 2
-;;	     :mode-line-width 2
-;;	     :tab-width 2
-;;	     :right-divider-width 8
-;;	     :scroll-bar-width ,(if x-toolkit-scroll-bars 8 6)
-;;	     :left-fringe-width 12
-;;	     :right-fringe-width 12))
-
-;;	(setq spacious-padding-subtle-mode-line
-;;	  '( :mode-line-active spacious-padding-subtle-mode-line-active
-;;	     :mode-line-inactive spacious-padding-subtle-mode-line-inactive))
-;; )
-
-;; (defvar pratik/gui-frame-count 0)
-
-;; (defun pratik/spacious-padding-enable-for-frame (frame)
-;;   (when (display-graphic-p frame)
-;;     (setq pratik/gui-frame-count (1+ pratik/gui-frame-count))
-;;     (with-selected-frame frame
-;;       (run-with-idle-timer
-;;        0 nil
-;;        (lambda ()
-;;	 (require 'spacious-padding)
-;;	 (unless (bound-and-true-p spacious-padding-mode)
-;;	   (spacious-padding-mode 1)))))))
-
-;; (defun pratik/spacious-padding-disable-for-frame (frame)
-;;   (when (display-graphic-p frame)
-;;     (setq pratik/gui-frame-count (max 0 (1- pratik/gui-frame-count)))
-;;     (when (= pratik/gui-frame-count 0)
-;;       (when (bound-and-true-p spacious-padding-mode)
-;;	(spacious-padding-mode -1)))))
-
-;; (if (daemonp)
-;;     (progn
-;;       (add-hook 'after-make-frame-functions
-;;		#'pratik/spacious-padding-enable-for-frame)
-;;       (add-hook 'delete-frame-functions
-;;		#'pratik/spacious-padding-disable-for-frame))
-;;   (add-hook 'emacs-startup-hook
-;;	    (lambda ()
-;;	      (setq pratik/gui-frame-count 1)
-;;	      (require 'spacious-padding)
-;;	      (spacious-padding-mode 1))))
-#+end_src
-
-*** spacious-padding integration
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (with-eval-after-load 'spacious-padding
-;;   (defun pratik-modeline-spacious-indicators ()
-;;     "Set box attribute to `'pratik-modeline-indicator-button' if spacious-padding is enabled."
-;;       (if (bound-and-true-p spacious-padding-mode)
-;;	  (set-face-attribute 'pratik-modeline-indicator-button nil :box t)
-;;	(set-face-attribute 'pratik-modeline-indicator-button nil :box 'unspecified))))
-
-;; (add-hook 'spacious-padding-mode-hook 'pratik-modeline-spacious-indicators )
-#+end_src
-
 ** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")  ;; Git Bash path
 (setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
 (setq explicit-bash-args '("--login" "-i"))
-#+end_src
-
-** Scrolling
-Kept to try out smooth scrolling. Didn't notice any improvement in scrolling when installed.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package ultra-scroll
-;;   :vc (:url "https://github.com/jdtsmith/ultra-scroll") ; if desired (emacs>=v30)
-;;   :init
-;;   (setq scroll-conservatively 3 ; or whatever value you prefer, since v0.4
-;;	scroll-margin 0)        ; important: scroll-margin>0 not yet supported
-;;   :config
-;;   (ultra-scroll-mode 1))
 #+end_src
 
 ** Themes
