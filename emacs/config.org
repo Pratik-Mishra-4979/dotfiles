@@ -273,6 +273,7 @@ this stage of initialization."
 				   ("nongnu" . 80)
 				   ("melpa"  . 70)
 				   ("melpa-stable" . 50)))
+(setq package-install-upgrade-built-in t)
 
 ;; This results in a more compact output that emphasizes performance
 (setq use-package-expand-minimally t)
@@ -325,7 +326,7 @@ Aporetic Serif
 (require 'buffer-move)   ;; Buffer-move for better window management
 #+end_src
 
-*** General non-package keybinds
+*** Key Bindings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defmacro my/leader-set (key cmd label)
   `(progn
@@ -374,12 +375,13 @@ Aporetic Serif
 
 ;; windows
 (my/leader-set "w c" 'delete-window "close window")
-(my/leader-set "w n" 'split-window-below "split below")
+(my/leader-set "w d" 'delete-other-windows "close other windows")
+(my/leader-set "w h" 'split-window-below "split below")
 (my/leader-set "w v" 'split-window-right "split right")
-(my/leader-set "w h" 'windmove-left "window left")
-(my/leader-set "w j" 'windmove-down "window down")
-(my/leader-set "w k" 'windmove-up "window up")
-(my/leader-set "w l" 'windmove-right "window right")
+(my/leader-set "w f" 'windmove-left "window left")
+(my/leader-set "w n" 'windmove-down "window down")
+(my/leader-set "w p" 'windmove-up "window up")
+(my/leader-set "w b" 'windmove-right "window right")
 (my/leader-set "w w" 'other-window "other window")
 #+end_src
 
@@ -405,6 +407,11 @@ Aporetic Serif
 This makes sure the frame is made visible after dashboard is open.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t)))
+#+end_src
+
+*** Repeat mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(repeat-mode 1)
 #+end_src
 
 ** All the icons.
@@ -462,6 +469,64 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 (add-hook 'org-mode-hook #'emacs-solo/center-document-mode)
 #+end_src
 
+** ChatGPT
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package gptel :ensure t :demand t
+  :vc ( :url "https://github.com/karthink/gptel"
+	:rev :newest)
+  :config
+  (setq gptel-default-mode 'org-mode)
+  (setq gptel-model 'gpt-5.4-mini)
+  (setq gptel-include-tool-results nil)
+  (setq gptel-display-buffer-action
+	'((display-buffer-same-window))))
+(add-hook 'gptel-post-response-functions 'gptel-end-of-response)
+(add-hook 'gptel-post-stream-hook 'gptel-auto-scroll)
+
+;;; GPTEL-Agent, it has many tools built in
+(use-package gptel-agent :ensure t :demand t
+  :vc ( :url "https://github.com/karthink/gptel-agent"
+	:rev :newest)
+  :config (gptel-agent-update))         ;Read files from agents directories
+
+;; A preset for general purpose gpt
+(gptel-make-preset 'egpt
+  :description "A general gpt"
+  :backend "ChatGPT"
+  :model 'gpt-5.4-mini
+  :system
+  '("You are an assistant in Emacs Org-Mode."
+    "Be concise, structured, fast and accurate."
+    "Do not repeat or over-explain."
+    "Stop when the answer is complete."
+    "Only use tools when strictly necessary for missing or time-sensitive information."
+    "Call a tool at most once per query unless explicitly required.")
+  :tools '("WebSearch")
+  :use-context 'system
+  :temperature 0.2)
+
+;; Caveman preset
+;; https://github.com/kuba-guzik/caveman-micro, https://github.com/JuliusBrussee/caveman
+(gptel-make-preset 'caveman
+  :description "A caveman gpt"
+  :backend "ChatGPT"
+  :model 'gpt-5.4-mini
+  :system
+  '(
+    "You are an assistant in Emacs Org-Mode."
+    "Respond like smart caveman. Cut all filler, keep technical substance."
+    "Ask questions if prompt is ambiguous."
+    "Use tools sparingly."
+    "Drop articles (a, an, the), filler (just, really, basically, actually)."
+    "Drop pleasantries (sure, certainly, happy to)."
+    "No hedging. Fragments fine. Short synonyms."
+    "Technical terms stay exact. Code blocks unchanged."
+    "Pattern: [thing] [action] [reason]. [next step].")
+  :tools '("WebSearch")
+  :use-context 'system
+  :temperature 0.2)
+#+end_src
+ambigous
 ** Corfu
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
@@ -720,9 +785,8 @@ downloaded hunspell
 
 ;; TODO: Rewrite the init in the order of execution.
 ;;frame size is dependent upon font size at frame creation. so if you set this before font setting then the frame size for emacsclient and emacs are different.
-(setq default-frame-alist
-      '((width . 64)
-	(height . 22)))
+(add-to-list 'default-frame-alist '(width . 64))
+(add-to-list 'default-frame-alist '(height . 22))
 #+end_src
 
 ** Git bash utls
@@ -778,97 +842,99 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 ** Org Mode
 TODO: need to make sure that all the org settings are in use-package org block. this is calling org on startup slowing it down.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package org
-  :ensure nil
-  :mode ("\\.org\\'" . org-mode)
+  (use-package org
+    :ensure nil
+    :mode ("\\.org\\'" . org-mode)
 
-  :custom-face
-  (org-level-1 ((t (:inherit outline-1 :height 1.15))))
-  (org-level-2 ((t (:inherit outline-2 :height 1.125))))
-  (org-level-3 ((t (:inherit outline-3 :height 1.1))))
-  (org-level-4 ((t (:inherit outline-4 :height 1.075))))
-  (org-level-5 ((t (:inherit outline-5 :height 1.05))))
-  (org-level-6 ((t (:inherit outline-5 :height 1.025))))
+    :custom-face
+    (org-level-1 ((t (:inherit outline-1 :height 1.15))))
+    (org-level-2 ((t (:inherit outline-2 :height 1.125))))
+    (org-level-3 ((t (:inherit outline-3 :height 1.1))))
+    (org-level-4 ((t (:inherit outline-4 :height 1.075))))
+    (org-level-5 ((t (:inherit outline-5 :height 1.05))))
+    (org-level-6 ((t (:inherit outline-5 :height 1.025))))
 
-  :config
-  (setopt org-export-backends '(ascii html icalendar latex odt md))
+    :config
+    (setopt org-export-backends '(ascii html icalendar latex odt md))
 
-  (setq
-   ;; Start collapsed for speed
-   org-startup-folded nil
+    (setq
+     ;; Start collapsed for speed
+     org-startup-folded nil
 
-   ;; Edit settings
-   org-auto-align-tags nil
-   org-tags-column 0
-   org-fold-catch-invisible-edits 'show-and-error
-   org-special-ctrl-a/e t
-   org-insert-heading-respect-content t
-   org-edit-src-content-indentation 0
+     ;; Edit settings
+     org-auto-align-tags nil
+     org-tags-column 0
+     org-fold-catch-invisible-edits 'show-and-error
+     org-special-ctrl-a/e t
+     org-insert-heading-respect-content t
+     org-edit-src-content-indentation 0
 
-   ;; Org styling
-   org-hide-emphasis-markers t
-   org-pretty-entities t
-   org-use-sub-superscripts nil ;; avoid using sub-superscripts
+     ;; Org styling
+     org-hide-emphasis-markers t
+     org-pretty-entities nil
+     org-use-sub-superscripts nil ;; avoid using sub-superscripts
 
-   ;; indentation behaviour
-   org-startup-indented nil
-   org-hide-leading-stars nil
-   org-adapt-indentation nil
-   org-list-indent-offset 0)
+     ;; indentation behaviour
+     org-startup-indented nil
+     org-hide-leading-stars nil
+     org-adapt-indentation nil
+     org-list-indent-offset 0)
 
-  ;; Pomodoro sound
-  (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
+    ;; Pomodoro sound
+    (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
 
-  ;; Ellipsis styling
-  (setq org-ellipsis " ▼ ")
-  (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
+    ;; Ellipsis styling
+    (setq org-ellipsis " ▼ ")
+    (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
 
-  ;; Hooks
-  (add-hook 'org-mode-hook 'variable-pitch-mode)
-  (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
+    ;; Hooks
+    (add-hook 'org-mode-hook 'variable-pitch-mode)
+    (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
 
-  ;; Org-agenda setup
-  (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
+    ;; Org-agenda setup
+    (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
-  ;; Org-latex formatting
-  (setq org-format-latex-options
-      (plist-put org-format-latex-options :scale 1.3))
+    ;; Org-latex formatting
+    (setq org-format-latex-options
+	(plist-put org-format-latex-options :scale 0.8))
+    (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
+    (setq org-preview-latex-default-process 'dvisvgm)
 
-  ;; Babel
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((python . t)
-     (emacs-lisp . t)))
+    ;; Babel
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((python . t)
+       (emacs-lisp . t)))
 
-  (setq org-confirm-babel-evaluate nil))
+    (setq org-confirm-babel-evaluate nil))
 
 
-(defvar my/post-startup-packages
-  '(nerd-icons
-    org
-    org-macs
-    org-compat
-    org-element
-    org-src
-    org-fold
-    org-agenda
-    org-capture
-    org-superstar
-    org-tempo)
-  "Packages to load incrementally after startup.")
+  (defvar my/post-startup-packages
+    '(nerd-icons
+      org
+      org-macs
+      org-compat
+      org-element
+      org-src
+      org-fold
+      org-agenda
+      org-capture
+      org-superstar
+      org-tempo)
+    "Packages to load incrementally after startup.")
 
-(defun my/load-packages-incrementally ()
-  (when my/post-startup-packages
-    (let ((pkg (pop my/post-startup-packages)))
-      (require pkg)
-      (message "Loaded %s" pkg)
-      (run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
+  (defun my/load-packages-incrementally ()
+    (when my/post-startup-packages
+      (let ((pkg (pop my/post-startup-packages)))
+	(require pkg)
+	(message "Loaded %s" pkg)
+	(run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
 
-(run-with-idle-timer
- 1 nil
- (lambda ()
-   (message "Starting incremental preload")
-   (my/load-packages-incrementally)))
+  (run-with-idle-timer
+   1 nil
+   (lambda ()
+     (message "Starting incremental preload")
+     (my/load-packages-incrementally)))
 #+end_src
 
 *** Org Superstar
@@ -990,17 +1056,6 @@ This is a small code to automatically trim handwritten notes, when adding them.
 	      #'my/org-dnd-block-fallback))
 #+end_src
 
-*** Org-draw
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package edraw-org
-  :vc (:url "https://github.com/misohena/el-easydraw")
-  :after org
-  :demand t
-  :mode ("\\.edraw\\.svg\\'" . edraw-mode)
-  :init
-  (autoload 'edraw "edraw-mode" nil t))
-#+end_src
-
 *** org-source-code programming support
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defvar pratik-org-src-temp-files nil
@@ -1055,6 +1110,29 @@ This is a small code to automatically trim handwritten notes, when adding them.
 (advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
 #+end_src
 
+*** Latex
+only useful if you are editing tex files.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (use-package auctex :ensure t :demand t)
+;; (use-package cdlatex :ensure t :demand t)
+#+end_src
+
+** Proced
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+
+;;; │ PROCED
+(use-package proced
+  :ensure nil
+  :custom
+  (proced-enable-color-flag t)
+  (proced-tree-flag t)
+  ;; (proced-auto-update-flag 'visible)
+  ;; (proced-auto-update-interval 10)
+  (proced-descent t)
+  (proced-filter 'user) ;; We can change interactively with `s'
+)
+#+end_src
+
 ** Python-Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package python-mode :ensure nil
@@ -1082,25 +1160,46 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
-;; (use-package ef-themes :ensure t :demand t)
-;; (use-package doric-themes
-;;   :vc (:url "https://github.com/protesilaos/doric-themes")
-;;   :ensure t :demand t)
-(setq modus-themes-mixed-fonts t)
-(setq modus-themes-variable-pitch-ui t)
-(load-theme 'modus-operandi)
-(set-face-attribute 'mode-line nil :box 'unspecified)
-(let ((bg (face-background 'default)))
-(set-face-attribute 'mode-line-inactive nil
-		    :box 'unspecified
-		    :background bg)
-(set-face-attribute 'fringe nil
-		    :background bg
-		    :foreground bg))
-(set-face-attribute 'mode-line-active nil
-		    :box 'unspecified
-		    :background "#f2f2f2")
+(use-package modus-themes
+  :ensure t
+  :demand t
+  :init
+  (modus-themes-include-derivatives-mode -1) ;; without this on ef-themes, doric-themes don't work.
+  :config
+  (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
+	modus-themes-to-rotate modus-themes-items
+	modus-themes-mixed-fonts t
+	modus-themes-variable-pitch-ui t
+	modus-themes-italic-constructs t
+	modus-themes-bold-constructs t
+	modus-themes-completions '((t . (bold)))
+	modus-themes-prompts '(bold))
+
+  ;;load a theme
+  (modus-themes-load-theme 'modus-operandi))
+
+(defun my-set-face-attributes (frame)
+  (with-selected-frame frame
+    (set-face-attribute 'mode-line nil :box 'unspecified)
+    (let ((bg (face-background 'default)))
+      (set-face-attribute 'mode-line-inactive nil
+			  :box 'unspecified
+			  :background "#f2f2f2")
+      (set-face-attribute 'fringe nil
+			  :background bg
+			  :foreground bg))
+    (set-face-attribute 'mode-line-active nil
+			:box 'unspecified
+			:background "#c1c9ff")))
+
+(add-hook 'after-make-frame-functions 'my-set-face-attributes)
+
+;; Set up the initial frame only if not in daemon mode
+(when (not (daemonp))
+  (my-set-face-attributes (selected-frame)))
 #+end_src
+
+#+RESULTS:
 
 ** Visual Upgrades
 The following settings are simple modes that are enabled (or disabled) so that Emacs functions more like you would expect a proper editor/IDE to function.
@@ -1190,6 +1289,31 @@ This already works out of the box.
  "M-," . xref-pop-marker-stack  ;; Go back
  "M-?" . xref-find-references   ;; Find References
 
+** YaSnippet
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package yasnippet
+  :ensure t
+  :init
+  (yas-global-mode 1)
+  :config
+  (setq yas-triggers-in-field t)
+
+  (defun my/org-enable-latex-snippets ()
+    (yas-activate-extra-mode 'latex-mode))
+
+  (add-hook 'org-mode-hook #'my/org-enable-latex-snippets))
+  ;; force latex snippets in org
+  (add-hook 'org-mode-hook
+	    (lambda ()
+	      (yas-minor-mode 1)
+	      (yas-activate-extra-mode 'latex-mode)))
+
+(use-package yasnippet-snippets
+  :ensure t
+  :demand t
+  :after yasnippet)
+#+end_src
+
 ** Zooming In/Out
 You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTRL plus the mouse wheel for zooming in/out.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -1204,4 +1328,4 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 Few more things to add: Treemacs, vterm, git timemachine, server mode , perspective and beframe.(email client)
 After everything is done integrate with modeline. That should be it.
 
-TODO: remove scrollbar and fringe mode, setup padding manually instead of spacious padding. try a font with smaller height. remove citar and its dependencies. move to emacs completions instead of vertico etc. (for version 31)
+TODO: remove scrollbar and fringe mode, setup padding manually instead of spacious padding. try a font with smaller height. remove citar and its dependencies. move to emacs completions instead of vertico etc. (for version
