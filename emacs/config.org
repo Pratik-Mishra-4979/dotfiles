@@ -6,6 +6,7 @@
 *  early-init.el
 ** Frame Settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+;;; -*- lexical-binding: t; -*-
 (push '(visibility . nil) default-frame-alist)
 ;; Always start emacs and frames maximized.
 ;; (add-to-list 'default-frame-alist '(fullscreen . maximized))
@@ -293,6 +294,7 @@ Enabling Transparency
 ** IMPORTANT PROGRAMS TO LOAD FIRST
 *** Adding the scripts directory to path
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;;; -*- lexical-binding: t; -*-
 (add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
 #+end_src
 
@@ -321,11 +323,6 @@ Aporetic Serif
 (setq default-directory "~/")
 #+end_src
 
-*** Sourcing the scripts
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(require 'buffer-move)   ;; Buffer-move for better window management
-#+end_src
-
 *** Key Bindings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defmacro my/leader-set (key cmd label)
@@ -343,6 +340,7 @@ Aporetic Serif
 (my/leader-set "b" nil "buffers")
 (my/leader-set "e" nil "Evaluate")
 (my/leader-set "t" nil "toggles")
+(my/leader-set "l" nil "LLM")
 (my/leader-set "w" nil "windows")
 
 ;; files
@@ -373,15 +371,25 @@ Aporetic Serif
 (my/leader-set "t l" 'display-line-numbers-mode "line numbers")
 (my/leader-set "t t" 'visual-line-mode "visual line mode")
 
+;; llm
+(my/leader-set "l e" '(lambda () (interactive) (ignore (my/gptel-prepare-buffer 'egpt))) "LLM egpt")
+(my/leader-set "l c" '(lambda () (interactive) (ignore (my/gptel-prepare-buffer 'caveman))) "LLM caveman")
+(my/leader-set "l A" 'gptel-agent "LLM agent")
+(my/leader-set "l a" 'gptel-add "Add context")
+(my/leader-set "l r" 'gptel-context-remove-all "Remove all context")
+(my/leader-set "l R" 'gptel-rewrite "Rewrite")
+(my/leader-set "l m" 'gptel-menu "menu")
+(my/leader-set "l o" 'my/gptel-ask "one-shot")
+
 ;; windows
 (my/leader-set "w c" 'delete-window "close window")
 (my/leader-set "w d" 'delete-other-windows "close other windows")
 (my/leader-set "w h" 'split-window-below "split below")
 (my/leader-set "w v" 'split-window-right "split right")
-(my/leader-set "w f" 'windmove-left "window left")
+(my/leader-set "w b" 'windmove-left "window left")
 (my/leader-set "w n" 'windmove-down "window down")
 (my/leader-set "w p" 'windmove-up "window up")
-(my/leader-set "w b" 'windmove-right "window right")
+(my/leader-set "w f" 'windmove-right "window right")
 (my/leader-set "w w" 'other-window "other window")
 #+end_src
 
@@ -395,12 +403,12 @@ Aporetic Serif
 
 *** Benchmarking Tools
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package esup
-;;   :ensure t
-;;   :init
-;;   (setq esup-depth 0))
-;; (use-package benchmark-init :ensure t :demand t ;;when you need to benchmark
-;;   :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
+(use-package esup
+  :ensure t
+  :init
+  (setq esup-depth 0))
+(use-package benchmark-init :ensure t :demand t ;;when you need to benchmark
+  :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
 #+end_src
 
 *** Make the frame visible
@@ -471,62 +479,204 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 
 ** ChatGPT
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package gptel :ensure t :demand t
+(use-package gptel
+  :ensure t
+  :commands (gptel gptel-add gptel-rewrite gptel-agent gptel-org-set-topic)
   :vc ( :url "https://github.com/karthink/gptel"
 	:rev :newest)
   :config
   (setq gptel-default-mode 'org-mode)
   (setq gptel-model 'gpt-5.4-mini)
   (setq gptel-include-tool-results nil)
+  (setq gptel-highlight-methods '(face))
   (setq gptel-display-buffer-action
-	'((display-buffer-same-window))))
-(add-hook 'gptel-post-response-functions 'gptel-end-of-response)
-(add-hook 'gptel-post-stream-hook 'gptel-auto-scroll)
+	'((display-buffer-same-window)))
+  (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "* Prompt: \n")
+  (setf (alist-get 'org-mode gptel-response-prefix-alist) "*Response:* \n")
+
+  ;; correct hook usage
+  ;; (add-hook 'gptel-post-response-functions #'gptel-end-of-response)
+
+  :hook
+  (gptel-mode-hook . gptel-highlight-mode)
+  )
 
 ;;; GPTEL-Agent, it has many tools built in
-(use-package gptel-agent :ensure t :demand t
+(use-package gptel-agent
+  :ensure t
+  :after gptel
   :vc ( :url "https://github.com/karthink/gptel-agent"
 	:rev :newest)
-  :config (gptel-agent-update))         ;Read files from agents directories
+  :config
+  (gptel-agent-update)   ;Read files from agents directories
+  ;; A preset for general purpose gpt
+  (gptel-make-preset 'egpt
+    :description "A general gpt"
+    :backend "ChatGPT"
+    :model 'gpt-5.4-mini
+    :system
+    '("<role_and_behavior>
+      You are an assistant in Emacs Org-Mode.
+      </role_and_behavior>
 
-;; A preset for general purpose gpt
-(gptel-make-preset 'egpt
-  :description "A general gpt"
-  :backend "ChatGPT"
-  :model 'gpt-5.4-mini
-  :system
-  '("You are an assistant in Emacs Org-Mode."
-    "Be concise, structured, fast and accurate."
-    "Do not repeat or over-explain."
-    "Stop when the answer is complete."
-    "Only use tools when strictly necessary for missing or time-sensitive information."
-    "Call a tool at most once per query unless explicitly required.")
-  :tools '("WebSearch")
-  :use-context 'system
-  :temperature 0.2)
+      <response_tone>
+      - Be concise, structured, fast and accurate.
+      - Do not repeat or over-explain.
+      - Stop when the answer is complete.
+      - Only use tools when strictly necessary for missing or time-sensitive information.
+      - Call a tool at most once per query unless explicitly required.
+      </response_tone>
+      ")
+    :tools '("WebSearch")
+    :use-context 'system
+    :temperature 0.2)
 
-;; Caveman preset
-;; https://github.com/kuba-guzik/caveman-micro, https://github.com/JuliusBrussee/caveman
-(gptel-make-preset 'caveman
-  :description "A caveman gpt"
-  :backend "ChatGPT"
-  :model 'gpt-5.4-mini
-  :system
-  '(
-    "You are an assistant in Emacs Org-Mode."
-    "Respond like smart caveman. Cut all filler, keep technical substance."
-    "Ask questions if prompt is ambiguous."
-    "Use tools sparingly."
-    "Drop articles (a, an, the), filler (just, really, basically, actually)."
-    "Drop pleasantries (sure, certainly, happy to)."
-    "No hedging. Fragments fine. Short synonyms."
-    "Technical terms stay exact. Code blocks unchanged."
-    "Pattern: [thing] [action] [reason]. [next step].")
-  :tools '("WebSearch")
-  :use-context 'system
-  :temperature 0.2)
+  ;; Caveman preset
+  ;; https://github.com/kuba-guzik/caveman-micro, https://github.com/JuliusBrussee/caveman
+  (gptel-make-preset 'caveman
+    :description "A caveman gpt"
+    :backend "ChatGPT"
+    :model 'gpt-5.4-mini
+    :system
+    '("<role_and_behavior>
+      You are an assistant in Emacs Org-Mode.
+      </role_and_behavior>
+
+      <response_tone>
+      - Respond like smart caveman. Cut all filler, keep technical substance.
+      - Ask questions if prompt is ambiguous.
+      - Use tools sparingly.
+      - Drop articles (a, an, the), filler (just, really, basically, actually).
+      - Drop pleasantries (sure, certainly, happy to).
+      - No hedging. Fragments fine. Short synonyms.
+      - Technical terms stay exact. Code blocks unchanged.
+      - Pattern: [thing] [action] [reason]. [next step].
+      </response_tone>
+      ")
+    :tools '("WebSearch")
+    :use-context 'system
+    :temperature 0.2)
+  )
+
+(defun my-gptel-preview-latex (&rest _args)
+  (when (derived-mode-p 'org-mode)
+    (save-excursion
+      (org-latex-preview nil))))
+
+(with-eval-after-load 'gptel
+  (add-hook 'gptel-post-response-hook #'my-gptel-preview-latex))
+
+;; a custom setter fucntion is required to set preset locally
+(defun my-local-setter (sym val)
+  (set (make-local-variable sym) val))
+
+;; a fucnton which sets the backend
+(setq  my/gptel-backend
+       (gptel-make-openai "ChatGPT"
+	 :key 'gptel-api-key
+	 :stream t))
+
+;; creating your own gptel buffer with custom preset
+(defun my/gptel-prepare-buffer (preset &optional name)
+  "Start or switch to a GPTel buffer and apply PRESET."
+  (interactive
+   (list (intern (read-string "Preset: "))
+	 (let ((s (read-string "Buffer name (optional): ")))
+	   (unless (string-empty-p s)
+	     (intern s)))))
+  (require 'gptel)
+  (require 'gptel-agent)
+  (let ((buffer (get-buffer-create (format "*gptel-%s*" (or name preset)))))
+    (with-current-buffer buffer
+      (unless (derived-mode-p 'org-mode)
+	(org-mode))
+      (unless gptel-mode
+	(gptel-mode))
+      (when (and (not (equal name 'ask))
+		 (= (buffer-size) 0))
+	(insert "* prompt:\n"))
+      (setq-local gptel-backend my/gptel-backend)
+      (gptel--apply-preset preset #'my-local-setter))
+    (pop-to-buffer buffer)
+    buffer))
+
+;; gptel-ask for one-shot queries.
+(defun my/gptel-ask ()
+  "Ask gptel in a dedicated buffer."
+  (interactive)
+  (require 'gptel)
+  (require 'gptel-agent)
+  (let* ((prompt
+	  (read-string
+	   "Ask GPT: "
+	   (and (use-region-p)
+		(buffer-substring-no-properties
+		 (region-beginning) (region-end)))))
+	 (ask-buffer (my/gptel-prepare-buffer 'egpt 'ask)))
+    (when (buffer-live-p ask-buffer)
+      (with-current-buffer ask-buffer
+	(setq-local gptel-org-branching-context t)
+	(setq-local gptel-prompt-prefix-alist
+	      (copy-tree gptel-prompt-prefix-alist))
+	(setf (alist-get 'org-mode gptel-prompt-prefix-alist) "*Prompt:* \n")
+	(org-overview)
+	(goto-char (point-max))
+	(insert "\n* Prompt: ")
+	(goto-char (point-max))
+	(insert prompt)))
+    (gptel-request prompt
+      :buffer ask-buffer
+      :position (with-current-buffer ask-buffer (point-max))
+      :stream gptel-stream
+      :transforms gptel-prompt-transform-functions
+      :fsm (gptel-make-fsm :handlers gptel-send--handlers)
+      :system (default-value 'gptel--system-message))))
+
+;; make the gptel buffers created take full window
+
+(defun my/gptel-display-full-window (buffer _alist)
+  "Display BUFFER and make it occupy the whole frame."
+  (let ((win (get-buffer-window buffer t)))
+    (unless win
+      (setq win (selected-window))
+      (with-selected-window win
+	(delete-other-windows)
+	(set-window-buffer win buffer)))
+    win))
+
+(add-to-list 'display-buffer-alist
+	     '("\\*gptel-.*\\*" . ((my/gptel-display-full-window))))
+
+;; karthink's reddit post presets, check later if we can append presets.
+;; also look at these posts
+;; https://github.com/karthink/.emacs.d/tree/8d3eca6a3c235a0d270aa5021add5dd728e467f8/plugins (gptel ask is a good one)
+;; https://www.reddit.com/r/emacs/comments/1nwgygm/building_workflows_with_gptel/
+;; https://www.reddit.com/r/emacs/comments/1t1mose/how_do_you_use_gptel_custom_integrations/
+;; https://github.com/natrys/whisper.el check for this integration
+;; also look at protesialaos package buffer-to-pdf
+;; https://protesilaos.com/codelog/2026-04-30-emacs-decent-default-sacha-chua/ and his defaults
+
+;; (defun my/gptel-windows-on-frame ()
+;;   "Return all windows on frame that aren't gptel chat buffers."
+;;   (delq (and-let* ((current-buf (window-buffer (selected-window)))
+;;                    ((buffer-local-value 'gptel-mode current-buf)))
+;;           (selected-window))
+;;         (window-list)))
+
+;; (gptel-make-preset 'visible-buffers
+;;   :description "Include the full text of all buffers visible in the frame."
+;;   :context
+;;   '(:eval (mapcar #'window-buffer (my/gptel-windows-on-frame))))
+
+;; (gptel-make-preset 'visible-text
+;;   :description "Include visible text from all windows in the frame."
+;;   :context
+;;   '(:eval (mapcar (lambda (win) ;; Create (<buffer> :bounds ((start . end)))
+;;                     `(,(window-buffer win)
+;;                       :bounds ((,(window-start win) . ,(window-end win)))))
+;;                   (my/gptel-windows-on-frame))))
 #+end_src
-ambigous
+
 ** Corfu
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
@@ -545,6 +695,17 @@ ambigous
 	("RET" . corfu-send)    ; RET for selection
 	("C-n" . corfu-next)      ; Move down the completions list
 	("C-p" . corfu-previous))) ; Move up the completions list
+#+end_src
+
+** Cursors
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package multiple-cursors
+  :ensure t
+  :commands (mc/mark-next-like-this mc/mark-previous-like-this mc/mark-all-like-this mc/edit-lines))
+(global-set-key (kbd "C->") 'mc/mark-next-like-this)
+(global-set-key (kbd "C-<") 'mc/mark-previous-like-this)
+(global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
+(global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
 #+end_src
 
 ** Dashboard
@@ -620,11 +781,43 @@ Eglot (built-in client for the language server protocol)
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package eglot
   :ensure nil
-  :hook (python-mode . eglot-ensure)
+  :hook (python-ts-mode . eglot-ensure)
   :config
-  (setq eglot-server-programs '((python-mode . ("pyright-langserver" "--stdio"))))
+  (setq eglot-server-programs '((python-ts-mode . ("pyright-langserver" "--stdio"))))
   (setq eglot-sync-connect nil)
   (setq eglot-autoshutdown t))
+#+end_src
+
+** Tree-Sitter
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+
+(setq treesit-language-source-alist
+      '((bash "https://github.com/tree-sitter/tree-sitter-bash" "v0.20.1")
+	(css "https://github.com/tree-sitter/tree-sitter-css" "v0.20.0")
+	(elisp "https://github.com/Wilfred/tree-sitter-elisp")
+	(html "https://github.com/tree-sitter/tree-sitter-html" "v0.20.1")
+	(markdown "https://github.com/ikatyang/tree-sitter-markdown")
+	(python "https://github.com/tree-sitter/tree-sitter-python" "v0.25.0")))
+
+(use-package bash-ts-mode
+  :ensure nil
+  :defer t
+  :mode "\\.\\(sh\\|bash\\)\\'")
+
+(use-package css-ts-mode
+  :ensure nil
+  :defer t
+  :mode "\\.css\\'")
+
+(use-package html-ts-mode
+  :ensure nil
+  :defer t
+  :mode "\\.html?\\'")
+
+(use-package python-ts-mode
+  :ensure nil
+  :defer t
+  :mode "\\.py\\'")
 #+end_src
 
 ** Electric Mode
@@ -688,6 +881,39 @@ Eglot (built-in client for the language server protocol)
 	  ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
 	  ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
 	  ("https://rbi.org.in/notifications_rss.xml" RBI notif))))
+
+(use-package newsticker
+  :ensure nil
+  :commands (newsticker-show-news)
+  :bind (("C-c r" . newsticker-show-news))
+  :config
+  (which-key-add-key-based-replacements "C-c r" "RSS")
+  (setq newsticker-url-list
+	'(("TheHindu" "https://frontline.thehindu.com/feeder/default.rss")
+	  ("ET TaxLegAcc" "https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting")
+	  ("ET CF" "https://cfo.economictimes.indiatimes.com/rss/corporate-finance")
+	  ("ET ESG" "https://cfo.economictimes.indiatimes.com/rss/esg")
+	  ("ET StratOper" "https://cfo.economictimes.indiatimes.com/rss/strategy-operations")
+	  ("ET policy" "https://cfo.economictimes.indiatimes.com/rss/policy")
+	  ("ET leadership" "https://cfo.economictimes.indiatimes.com/rss/leadership")
+	  ("ET Gov-riskcomp" "https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance")
+	  ("ET economy" "https://cfo.economictimes.indiatimes.com/rss/economy")
+	  ("RBI PR" "https://rbi.org.in/pressreleases_rss.xml")
+	  ("RBI notif" "https://rbi.org.in/notifications_rss.xml"))
+	newsticker-automatically-mark-items-as-old nil
+	newsticker-retrieval-interval 3600
+	newsticker-treeview-list-window-height 0.35
+	newsticker-treeview-image-automatic-resize nil
+	newsticker-treeview-fill-column 100)
+
+  (defun my/close-newsticker ()
+    "Kill all tree-view related buffers."
+    (interactive)
+    (dolist (buf '("*Newsticker List*" "*Newsticker Item*" "*Newsticker Tree*"))
+      (when (get-buffer buf)
+	(kill-buffer buf))))
+
+  (advice-add 'newsticker-treeview-quit :after #'my/close-newsticker))
 #+end_src
 
 ** Flymake
@@ -842,99 +1068,99 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 ** Org Mode
 TODO: need to make sure that all the org settings are in use-package org block. this is calling org on startup slowing it down.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-  (use-package org
-    :ensure nil
-    :mode ("\\.org\\'" . org-mode)
+(use-package org
+  :ensure nil
+  :mode ("\\.org\\'" . org-mode)
 
-    :custom-face
-    (org-level-1 ((t (:inherit outline-1 :height 1.15))))
-    (org-level-2 ((t (:inherit outline-2 :height 1.125))))
-    (org-level-3 ((t (:inherit outline-3 :height 1.1))))
-    (org-level-4 ((t (:inherit outline-4 :height 1.075))))
-    (org-level-5 ((t (:inherit outline-5 :height 1.05))))
-    (org-level-6 ((t (:inherit outline-5 :height 1.025))))
+  :custom-face
+  ;; (org-level-1 ((t (:inherit outline-1 :height 1.15))))
+  ;; (org-level-2 ((t (:inherit outline-2 :height 1.125))))
+  ;; (org-level-3 ((t (:inherit outline-3 :height 1.1))))
+  ;; (org-level-4 ((t (:inherit outline-4 :height 1.075))))
+  ;; (org-level-5 ((t (:inherit outline-5 :height 1.05))))
+  ;; (org-level-6 ((t (:inherit outline-5 :height 1.025))))
 
-    :config
-    (setopt org-export-backends '(ascii html icalendar latex odt md))
+  :config
+  (setopt org-export-backends '(ascii html icalendar latex odt md))
 
-    (setq
-     ;; Start collapsed for speed
-     org-startup-folded nil
+  (setq
+   ;; Start collapsed for speed
+   org-startup-folded nil
 
-     ;; Edit settings
-     org-auto-align-tags nil
-     org-tags-column 0
-     org-fold-catch-invisible-edits 'show-and-error
-     org-special-ctrl-a/e t
-     org-insert-heading-respect-content t
-     org-edit-src-content-indentation 0
+   ;; Edit settings
+   org-auto-align-tags nil
+   org-tags-column 0
+   org-fold-catch-invisible-edits 'show-and-error
+   org-special-ctrl-a/e t
+   org-insert-heading-respect-content t
+   org-edit-src-content-indentation 0
 
-     ;; Org styling
-     org-hide-emphasis-markers t
-     org-pretty-entities nil
-     org-use-sub-superscripts nil ;; avoid using sub-superscripts
+   ;; Org styling
+   org-hide-emphasis-markers t
+   org-pretty-entities nil
+   org-use-sub-superscripts nil ;; avoid using sub-superscripts
 
-     ;; indentation behaviour
-     org-startup-indented nil
-     org-hide-leading-stars nil
-     org-adapt-indentation nil
-     org-list-indent-offset 0)
+   ;; indentation behaviour
+   org-startup-indented nil
+   org-hide-leading-stars nil
+   org-adapt-indentation nil
+   org-list-indent-offset 0)
 
-    ;; Pomodoro sound
-    (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
+  ;; Pomodoro sound
+  (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
 
-    ;; Ellipsis styling
-    (setq org-ellipsis " ▼ ")
-    (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
+  ;; Ellipsis styling
+  (setq org-ellipsis " ▼ ")
+  (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
 
-    ;; Hooks
-    (add-hook 'org-mode-hook 'variable-pitch-mode)
-    (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
+  ;; Hooks
+  (add-hook 'org-mode-hook 'variable-pitch-mode)
+  (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
 
-    ;; Org-agenda setup
-    (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
+  ;; Org-agenda setup
+  (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
-    ;; Org-latex formatting
-    (setq org-format-latex-options
+  ;; Org-latex formatting
+  (setq org-format-latex-options
 	(plist-put org-format-latex-options :scale 0.8))
-    (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
-    (setq org-preview-latex-default-process 'dvisvgm)
+  (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
+  (setq org-preview-latex-default-process 'dvisvgm)
 
-    ;; Babel
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((python . t)
-       (emacs-lisp . t)))
+  ;; Babel
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t)
+     (emacs-lisp . t)))
 
-    (setq org-confirm-babel-evaluate nil))
+  (setq org-confirm-babel-evaluate nil))
 
 
-  (defvar my/post-startup-packages
-    '(nerd-icons
-      org
-      org-macs
-      org-compat
-      org-element
-      org-src
-      org-fold
-      org-agenda
-      org-capture
-      org-superstar
-      org-tempo)
-    "Packages to load incrementally after startup.")
+(defvar my/post-startup-packages
+  '(nerd-icons
+    org
+    org-macs
+    org-compat
+    org-element
+    org-src
+    org-fold
+    org-agenda
+    org-capture
+    org-superstar
+    org-tempo)
+  "Packages to load incrementally after startup.")
 
-  (defun my/load-packages-incrementally ()
-    (when my/post-startup-packages
-      (let ((pkg (pop my/post-startup-packages)))
-	(require pkg)
-	(message "Loaded %s" pkg)
-	(run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
+(defun my/load-packages-incrementally ()
+  (when my/post-startup-packages
+    (let ((pkg (pop my/post-startup-packages)))
+      (require pkg)
+      (message "Loaded %s" pkg)
+      (run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
 
-  (run-with-idle-timer
-   1 nil
-   (lambda ()
-     (message "Starting incremental preload")
-     (my/load-packages-incrementally)))
+(run-with-idle-timer
+ 1 nil
+ (lambda ()
+   (message "Starting incremental preload")
+   (my/load-packages-incrementally)))
 #+end_src
 
 *** Org Superstar
@@ -1135,7 +1361,8 @@ only useful if you are editing tex files.
 
 ** Python-Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package python-mode :ensure nil
+(use-package python
+  :ensure nil
   :config
   (setq python-shell-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe" )
   (setq python-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe"))
@@ -1163,8 +1390,10 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 (use-package modus-themes
   :ensure t
   :demand t
+  :vc ( :url "https://github.com/protesilaos/modus-themes"
+	:rev :newest)
   :init
-  (modus-themes-include-derivatives-mode -1) ;; without this on ef-themes, doric-themes don't work.
+  (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
 	modus-themes-to-rotate modus-themes-items
@@ -1178,6 +1407,9 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
   ;;load a theme
   (modus-themes-load-theme 'modus-operandi))
 
+;; higlights the current line
+(global-hl-line-mode 1)
+
 (defun my-set-face-attributes (frame)
   (with-selected-frame frame
     (set-face-attribute 'mode-line nil :box 'unspecified)
@@ -1185,12 +1417,19 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
       (set-face-attribute 'mode-line-inactive nil
 			  :box 'unspecified
 			  :background "#f2f2f2")
+
       (set-face-attribute 'fringe nil
 			  :background bg
 			  :foreground bg))
     (set-face-attribute 'mode-line-active nil
-			:box 'unspecified
-			:background "#c1c9ff")))
+			:weight 'light
+			:foreground "grey20"
+			:background "grey90"
+			:box '(:line-width -1 :color "grey75" :style nil))))
+;; (set-face-attribute 'mode-line-active nil
+;;			:box 'unspecified
+;;			:background "#efeff2")))
+;;			:background "#c1c9ff"
 
 (add-hook 'after-make-frame-functions 'my-set-face-attributes)
 
@@ -1217,17 +1456,25 @@ The following settings are simple modes that are enabled (or disabled) so that E
 ;; The `vertico' package applies a vertical layout to the minibuffer.
 (use-package vertico
   :ensure t
-  :hook (after-init . vertico-mode)
+  :hook (after-init . vertico-mode) ;; this is better than normal mode
   :init
-  (setq vertico-cycle t
-	vertico-resize nil))
+  (setq vertico-cycle t)
+  ;; setting this is necessary to have annotations in unobtrusive mode
+  (setq vertico-flat-annotate t)
+  :config
+  (vertico-unobtrusive-mode))
 
 ;; The `marginalia' package provides helpful annotations next to
 ;; completion candidates in the minibuffer.
 (use-package marginalia
   :ensure t
-  :hook (after-init . marginalia-mode))
-
+  :hook (after-init . marginalia-mode)
+  :config
+  ;; if you don't use unicode, it just strips everything away and it looks like its merged.
+  (setq marginalia-separator "\u200B ")
+  ;; needed only for unobtrusive and flat mode.
+  (setq marginalia-align-offset -20))
+;; fix it and submit the patch
 ;; The `orderless' package lets the minibuffer use an out-of-order
 ;; pattern matching algorithm.
 (use-package orderless
@@ -1265,7 +1512,7 @@ Tells you the key bindings
 	which-key-min-display-lines 6
 	which-key-side-window-slot -10
 	which-key-side-window-max-height 0.25
-	which-key-idle-delay 1
+	which-key-idle-delay 2
 	which-key-max-description-length 25
 	which-key-allow-imprecise-window-fit nil
 	which-key-separator " -> "))
@@ -1293,6 +1540,7 @@ This already works out of the box.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package yasnippet
   :ensure t
+  :after org
   :init
   (yas-global-mode 1)
   :config
@@ -1310,7 +1558,6 @@ This already works out of the box.
 
 (use-package yasnippet-snippets
   :ensure t
-  :demand t
   :after yasnippet)
 #+end_src
 

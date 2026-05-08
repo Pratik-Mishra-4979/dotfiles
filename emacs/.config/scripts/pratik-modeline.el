@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t; -*-
 ;;This is for me to configure my own modeline
 (defgroup pratik-modeline nil
  "Custom modeline that is close to default but shows what i want"
