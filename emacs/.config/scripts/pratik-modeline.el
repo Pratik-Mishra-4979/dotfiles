@@ -331,7 +331,7 @@ See `pratik-modeline-string-cut-middle'."
 		    ((derived-mode-p 'text-mode) "§")
 		    ((derived-mode-p 'prog-mode) "λ")
 		    ((derived-mode-p 'comint-mode) ">_")
-		    (t "◦")))
+		    (t "")))
 	(name (capitalize (string-replace "-mode" "" (symbol-name major-mode))))
 	(help (if-let* ((parent (get major-mode 'derived-mode-parent)))
 		 (format "Symbol: `%s'.  Derived from: `%s'" major-mode parent)
@@ -555,7 +555,8 @@ Specific to the current window's mode line.")
 
 ;; Define a function to add the alarm icon to the modeline
 (setq pratik-modeline-pomodoro-icon
-      (propertize "★ "
+      (propertize "󰓎 "
+		  'face '(:weight bold)
 		  'help-echo "Click to start a Pomodoro timer!"
 		  'local-map (let ((map (make-sparse-keymap)))
 			       (define-key map [mode-line down-mouse-1] #'pratik-modeline-pomodoro)

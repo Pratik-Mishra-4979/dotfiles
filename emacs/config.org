@@ -9,7 +9,10 @@
 ;;; -*- lexical-binding: t; -*-
 (push '(visibility . nil) default-frame-alist)
 ;; Always start emacs and frames maximized.
-;; (add-to-list 'default-frame-alist '(fullscreen . maximized))
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
+;; trying if this makes sense. kinda does, but i could be stuck if emacs hangs
+(add-to-list 'default-frame-alist '(undecorated . t))
+(add-to-list 'default-frame-alist '(border-width . 10))
 #+end_src
 
 ** Garbage collection threshold increase
@@ -20,8 +23,11 @@
 
 ** Performance boost
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+
 (blink-cursor-mode -1) ;; disable blinking cursor
 (global-visual-line-mode t)  ;; Enable line wrap
+(tooltip-mode -1) ;; remove the popups on hover, on windows they can get stuck.
+
 ;;; this makes the visual line mode wrap according to prefix
 (setq global-visual-wrap-prefix-mode t)
 (setq help-window-select t) ;; always select the help window
@@ -310,11 +316,12 @@ Enabling Transparency
 *** Defining Variables
 AporeticSerifMonoNerdFont
 Aporetic Serif
+FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. need to check that out sometime later. ok it does not have the glyphs, make sure to patch it later. so that the glyphs work. this font is very good looking.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq user-full-name "Pratik Mishra"
       user-mail-address "pratikmishra4979@gmail.com")
-(setq user-fixed-pitch-font "AporeticSerifMonoNerdFont")
-(setq user-variable-pitch-font "Aporetic Serif")
+(setq user-fixed-pitch-font "FantasqueSansM Nerd Font")
+(setq user-variable-pitch-font "FantasqueSansM Nerd Font Propo")
 (setq user-font-size 14)
 #+end_src
 
@@ -417,9 +424,10 @@ This makes sure the frame is made visible after dashboard is open.
 (add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t)))
 #+end_src
 
-*** Repeat mode
+*** Repeat mode and other emacs- settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (repeat-mode 1)
+(setq echo-keystrokes-help nil) ;;make echo area a little cleaner
 #+end_src
 
 ** All the icons.
@@ -433,14 +441,6 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 (use-package nerd-icons-dired :ensure t
   :after nerd-icons
   :hook (dired-mode . nerd-icons-dired-mode))
-
-;; all the icons completion adds icons to mini buffers.
-
-(use-package nerd-icons-completion :ensure t
-  :after (marginalia nerd-icons)
-  :hook (marginalia-mode . #'nerd-icons-completion-marginalia-setup)
-  :init
-  (nerd-icons-completion-mode 1))
 #+end_src
 
 ** Center-Document Mode
@@ -484,6 +484,8 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
   :commands (gptel gptel-add gptel-rewrite gptel-agent gptel-org-set-topic)
   :vc ( :url "https://github.com/karthink/gptel"
 	:rev :newest)
+  :custom-face
+  ;; (gptel-context-highlight-face ((t (:background "#2f0c3f"))))
   :config
   (setq gptel-default-mode 'org-mode)
   (setq gptel-model 'gpt-5.4-mini)
@@ -617,7 +619,7 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
       (with-current-buffer ask-buffer
 	(setq-local gptel-org-branching-context t)
 	(setq-local gptel-prompt-prefix-alist
-	      (copy-tree gptel-prompt-prefix-alist))
+		    (copy-tree gptel-prompt-prefix-alist))
 	(setf (alist-get 'org-mode gptel-prompt-prefix-alist) "*Prompt:* \n")
 	(org-overview)
 	(goto-char (point-max))
@@ -681,13 +683,15 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
   :ensure t
-  :hook ((python-mode . corfu-mode)
-	 (emacs-lisp-mode . corfu-mode))
+  :hook ((python-ts-mode . corfu-mode)
+	 (emacs-lisp-mode . corfu-mode)
+	 (corfu-mode . corfu-echo-mode))
   :custom
   (corfu-auto t)                ; Enable automatic completion
   (corfu-cycle t)               ; Enable cycling through completions
   (corfu-echo-documentation t)  ; Show documentation on the completion
   (corfu-min-width 20)          ; Minimum width for completion popup
+  (corfu-echo-delay '(0.5 . 0.2)) ; Delay intial and subsequent
   :bind
   (:map corfu-map
 	("TAB" . corfu-next)     ; TAB for next completion
@@ -790,7 +794,6 @@ Eglot (built-in client for the language server protocol)
 
 ** Tree-Sitter
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-
 (setq treesit-language-source-alist
       '((bash "https://github.com/tree-sitter/tree-sitter-bash" "v0.20.1")
 	(css "https://github.com/tree-sitter/tree-sitter-css" "v0.20.0")
@@ -817,7 +820,8 @@ Eglot (built-in client for the language server protocol)
 (use-package python-ts-mode
   :ensure nil
   :defer t
-  :mode "\\.py\\'")
+  :mode "\\.py\\'"
+  :hook (python-mode . python-ts-mode))
 #+end_src
 
 ** Electric Mode
@@ -844,11 +848,10 @@ Eglot (built-in client for the language server protocol)
   :ensure t
   :defer t
   :commands (elfeed elfeed-update)
-
   :bind (("C-c r" . elfeed)
 	 :map elfeed-search-mode-map
 	 ("n" . elfeed-next-entry)
-	 ("q" . pratik/elfeed-kill-buffer)
+	 ("q" . elfeed-kill-buffer)
 	 ("p" . elfeed-previous-entry))
 
   :hook (elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
@@ -869,8 +872,9 @@ Eglot (built-in client for the language server protocol)
 	shr-use-fonts nil)
 
   :config
+  (which-key-add-key-based-replacements "C-c r" "RSS")
   (setq elfeed-feeds
-	'(("https://frontline.thehindu.com/feeder/default.rss" TheHindu)
+	'(("https://frontline.thehindu.com/feeder/default.rss" Hindu)
 	  ("https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting" ET TaxLegAcc)
 	  ("https://cfo.economictimes.indiatimes.com/rss/corporate-finance" ET CF)
 	  ("https://cfo.economictimes.indiatimes.com/rss/esg" ET ESG)
@@ -880,40 +884,33 @@ Eglot (built-in client for the language server protocol)
 	  ("https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance" ET Gov-riskcomp)
 	  ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
 	  ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
-	  ("https://rbi.org.in/notifications_rss.xml" RBI notif))))
+	  ("https://rbi.org.in/notifications_rss.xml" RBI notif)))
+  )
 
-(use-package newsticker
-  :ensure nil
-  :commands (newsticker-show-news)
-  :bind (("C-c r" . newsticker-show-news))
-  :config
-  (which-key-add-key-based-replacements "C-c r" "RSS")
-  (setq newsticker-url-list
-	'(("TheHindu" "https://frontline.thehindu.com/feeder/default.rss")
-	  ("ET TaxLegAcc" "https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting")
-	  ("ET CF" "https://cfo.economictimes.indiatimes.com/rss/corporate-finance")
-	  ("ET ESG" "https://cfo.economictimes.indiatimes.com/rss/esg")
-	  ("ET StratOper" "https://cfo.economictimes.indiatimes.com/rss/strategy-operations")
-	  ("ET policy" "https://cfo.economictimes.indiatimes.com/rss/policy")
-	  ("ET leadership" "https://cfo.economictimes.indiatimes.com/rss/leadership")
-	  ("ET Gov-riskcomp" "https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance")
-	  ("ET economy" "https://cfo.economictimes.indiatimes.com/rss/economy")
-	  ("RBI PR" "https://rbi.org.in/pressreleases_rss.xml")
-	  ("RBI notif" "https://rbi.org.in/notifications_rss.xml"))
-	newsticker-automatically-mark-items-as-old nil
-	newsticker-retrieval-interval 3600
-	newsticker-treeview-list-window-height 0.35
-	newsticker-treeview-image-automatic-resize nil
-	newsticker-treeview-fill-column 100)
+;; (use-package elfeed-tube
+;;   :ensure t ;; or :straight t
+;;   :after elfeed
+;;   :vc ( :url "https://github.com/karthink/elfeed-tube"
+;;	:rev :newest)
+;;   :demand t
+;;   :config
+;;   ;; (setq elfeed-tube-auto-save-p nil) ; default value
+;;   ;; (setq elfeed-tube-auto-fetch-p t)  ; default value
+;;   (elfeed-tube-setup)
+;;   (setq elfeed-tube-backend 'yt-dlp)
 
-  (defun my/close-newsticker ()
-    "Kill all tree-view related buffers."
-    (interactive)
-    (dolist (buf '("*Newsticker List*" "*Newsticker Item*" "*Newsticker Tree*"))
-      (when (get-buffer buf)
-	(kill-buffer buf))))
+;;   :bind (:map elfeed-show-mode-map
+;;	 ("F" . elfeed-tube-fetch)
+;;	 ([remap save-buffer] . elfeed-tube-save)
+;;	 :map elfeed-search-mode-map
+;;	 ("F" . elfeed-tube-fetch)
+;;	 ([remap save-buffer] . elfeed-tube-save)))
 
-  (advice-add 'newsticker-treeview-quit :after #'my/close-newsticker))
+;; (use-package elfeed-tube-mpv
+;;   :ensure t ;; or :straight t
+;;   :bind (:map elfeed-show-mode-map
+;;               ("C-c C-f" . elfeed-tube-mpv-follow-mode)
+;;               ("C-c C-w" . elfeed-tube-mpv-where)))
 #+end_src
 
 ** Flymake
@@ -1007,7 +1004,7 @@ downloaded hunspell
       (format "%s-%d" user-fixed-pitch-font user-font-size))
 
 (add-to-list 'default-frame-alist `(font . ,user-frame-font))
-(setq-default line-spacing 0.05) ;;default value was 0.06, 0.1
+(setq-default line-spacing 0.05) ;;default value was 0.06, 0.1,
 
 ;; TODO: Rewrite the init in the order of execution.
 ;;frame size is dependent upon font size at frame creation. so if you set this before font setting then the frame size for emacsclient and emacs are different.
@@ -1032,6 +1029,14 @@ This adds various utilitites to emacs without changing my system path.
 
   (unless (member xournal-bin exec-path)
     (add-to-list 'exec-path xournal-bin)))
+#+end_src
+
+** imenu
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package imenu
+  :ensure nil
+  :config
+  (setq imenu-auto-rescan t)) ;; this should solve the issue of it being consistent.
 #+end_src
 
 ** Modeline
@@ -1071,7 +1076,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 (use-package org
   :ensure nil
   :mode ("\\.org\\'" . org-mode)
-
   :custom-face
   ;; (org-level-1 ((t (:inherit outline-1 :height 1.15))))
   ;; (org-level-2 ((t (:inherit outline-2 :height 1.125))))
@@ -1110,19 +1114,43 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
 
   ;; Ellipsis styling
-  (setq org-ellipsis " ▼ ")
+  (setq org-ellipsis " ...")
   (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
+
+  ;; Defines cursor-sensor mode for emphasis marker
+  (defun my/emphasis-cursor (_win _pos type)
+    "Indicate position inside hidden emphasis with bar cursor."
+    (setq cursor-type (if (eq type 'entered) 'bar 'box)))
+
+  (defun my/org-remove-cursor-text-properties (beg end &rest _r)
+    "Remove cursor sensor properties."
+    (with-silent-modifications
+      (remove-text-properties beg end '(cursor-sensor-functions t))))
+
+  (defun my/org-do-emphasis-active-cursor (fun limit)
+    (when-let ((ret (funcall fun limit)))
+      (put-text-property (match-beginning 4) (match-end 2)
+			 'cursor-sensor-functions '(my/emphasis-cursor))
+      (org-rear-nonsticky-at (match-end 3))
+      ret))
+
+  (when org-hide-emphasis-markers
+    (advice-add 'org-unfontify-region :after 'my/org-remove-cursor-text-properties)
+    (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
 
   ;; Hooks
   (add-hook 'org-mode-hook 'variable-pitch-mode)
   (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
+  (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
 
   ;; Org-agenda setup
   (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
   ;; Org-latex formatting
   (setq org-format-latex-options
-	(plist-put org-format-latex-options :scale 0.8))
+      (plist-put
+       (plist-put org-format-latex-options :background "Transparent")
+       :scale 0.9))
   (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
   (setq org-preview-latex-default-process 'dvisvgm)
 
@@ -1169,6 +1197,9 @@ Org-Bullets successor, nicer bullets.
 (use-package org-superstar :ensure t
   :after org
   :config
+  (setq org-superstar-headline-bullets-list
+      '("󰪥 " " " "󰋸 " " "))
+  (setq org-superstar-item-bullet-alist '((42 . ?󰫢) (43 . ?) (45 . ?)))
   (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+end_src
 
@@ -1283,6 +1314,9 @@ This is a small code to automatically trim handwritten notes, when adding them.
 #+end_src
 
 *** org-source-code programming support
+This is needed currently,
+https://github.com/joaotavora/eglot/issues/523 check if this issue is resolved then you can remove this code.
+**** TODO we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defvar pratik-org-src-temp-files nil
   "List of temp files created for org-src + eglot integration.")
@@ -1404,8 +1438,9 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 	modus-themes-completions '((t . (bold)))
 	modus-themes-prompts '(bold))
 
-  ;;load a theme
-  (modus-themes-load-theme 'modus-operandi))
+  ;; load a theme
+  (modus-themes-load-theme 'modus-operandi)
+  )
 
 ;; higlights the current line
 (global-hl-line-mode 1)
@@ -1414,19 +1449,15 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
   (with-selected-frame frame
     (set-face-attribute 'mode-line nil :box 'unspecified)
     (let ((bg (face-background 'default)))
-      (set-face-attribute 'mode-line-inactive nil
-			  :box 'unspecified
-			  :background "#f2f2f2")
+      ;; (set-face-attribute 'mode-line-inactive nil
+      ;;			  :box 'unspecified
+      ;;			  :background "#f2f2f2")
 
       (set-face-attribute 'fringe nil
 			  :background bg
-			  :foreground bg))
-    (set-face-attribute 'mode-line-active nil
-			:weight 'light
-			:foreground "grey20"
-			:background "grey90"
-			:box '(:line-width -1 :color "grey75" :style nil))))
-;; (set-face-attribute 'mode-line-active nil
+			  :foreground bg))))
+
+;; ;; (set-face-attribute 'mode-line-active nil
 ;;			:box 'unspecified
 ;;			:background "#efeff2")))
 ;;			:background "#c1c9ff"
@@ -1462,7 +1493,13 @@ The following settings are simple modes that are enabled (or disabled) so that E
   ;; setting this is necessary to have annotations in unobtrusive mode
   (setq vertico-flat-annotate t)
   :config
-  (vertico-unobtrusive-mode))
+  (vertico-unobtrusive-mode)
+  ;;minibuffer setting to stop showing default's as unobtrusive mode already shows it
+  (setq minibuffer-default-prompt-format "")
+  (setq scroll-conservatively 1000) ;; makes it scroll slowly
+  (setq scroll-margin 3) ;; scrolls only if i go below last 3 lines, 3 so that the minibuffer resize does not automatically scroll
+  (setq vertico-resize 'fixed) ;; makes it windows scroll less
+  )
 
 ;; The `marginalia' package provides helpful annotations next to
 ;; completion candidates in the minibuffer.
@@ -1470,11 +1507,70 @@ The following settings are simple modes that are enabled (or disabled) so that E
   :ensure t
   :hook (after-init . marginalia-mode)
   :config
+  ;; defining my annotators
+  (defun my/marginalia-annotate-function (cand)
+    "Annotate function CAND with its documentation string."
+    (when-let* ((sym (intern-soft cand)))
+      (marginalia--fields
+       (:left (marginalia-annotate-binding cand))
+       (" |" :face 'marginalia-documentation)
+       ((marginalia--function-doc sym)
+	:truncate 1.0 :face 'marginalia-documentation))))
+
+  (defface my/marginalia-separator-face
+    '((t :inherit modus-themes-completion-match-3 :weight normal))
+    "Modus-based separator face without bold.")
+
+  (defun my/marginalia-annotate-variable (cand)
+    "Annotate variable CAND with its documentation string."
+    (when-let* ((sym (intern-soft cand)))
+      (marginalia--fields
+       (" |" :face 'marginalia-documentation)
+       ((or (documentation-property sym 'variable-documentation)
+	    (marginalia--definition-prefix sym))
+	:truncate 1.0 :face 'marginalia-documentation)
+       (":" :face 'my/marginalia-separator-face)
+       ((marginalia--variable-value sym) :truncate 0.5 :face 'my/marginalia-separator-face))))
+
+  (defun my/marginalia-annotate-command (cand)
+    "Annotate command CAND with its documentation string."
+    (when-let* ((sym (intern-soft cand)))
+      (concat
+       (marginalia-annotate-binding cand)
+       (propertize " |" 'face 'marginalia-documentation)
+       (marginalia--documentation (marginalia--function-doc sym)))))
+
+  ;; changing annotators
+  (dolist (spec '((variable . my/marginalia-annotate-variable)
+		  (function . my/marginalia-annotate-function)
+		  (command . my/marginalia-annotate-command)))
+    (setcdr (assq (car spec) marginalia-annotators)
+	    (list (cdr spec) 'builtin 'none)))
+
+  (dolist (key '(file buffer bookmark))  ;; not needed annotations.
+    (let ((entry (assq key marginalia-annotators)))
+      (when entry
+	(setcdr entry (cddr entry)))))
+
+  ;; i want the default to be builtin and when required switch to mine
+  (defun marginalia-toggle ()
+    (interactive)
+    (mapc
+     (lambda (x)
+       (setcdr x (append (reverse (remq 'none (cdr x))) '(none))))
+     marginalia-annotators))
+
+  (marginalia-toggle)
+
+  (define-key minibuffer-local-map (kbd "C-f") #'marginalia-toggle)
+  (define-key minibuffer-local-map (kbd "C-b") #'marginalia-toggle)
+
   ;; if you don't use unicode, it just strips everything away and it looks like its merged.
   (setq marginalia-separator "\u200B ")
+
   ;; needed only for unobtrusive and flat mode.
-  (setq marginalia-align-offset -20))
-;; fix it and submit the patch
+  (setq marginalia-align-offset -50))
+
 ;; The `orderless' package lets the minibuffer use an out-of-order
 ;; pattern matching algorithm.
 (use-package orderless
@@ -1569,10 +1665,3 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 (global-set-key (kbd "<C-wheel-up>") 'text-scale-increase)
 (global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease)
 #+end_src
-
- check out hyperbole (for dashboard and emms integration), org transclusion for big org files with all the notes inside, gnu auctex for latex (check out a software for referencing also), transient for context aware menu, embark for context aware shortcuts, check out org drill to convert notes into flashcards.
-
-Few more things to add: Treemacs, vterm, git timemachine, server mode , perspective and beframe.(email client)
-After everything is done integrate with modeline. That should be it.
-
-TODO: remove scrollbar and fringe mode, setup padding manually instead of spacious padding. try a font with smaller height. remove citar and its dependencies. move to emacs completions instead of vertico etc. (for version
