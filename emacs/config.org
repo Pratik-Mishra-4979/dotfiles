@@ -1,4 +1,4 @@
-#+TITLE:Pratik's GNU Emacs Config
+#+TITLE: Pratik's GNU Emacs Config
 #+AUTHOR: Pratik Mishra
 #+DESCRIPTION: Pratik's personal Emacs config.
 #+STARTUP: content
@@ -270,7 +270,42 @@ this stage of initialization."
 
 ** package setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-(setq package-enable-at-startup nil)
+(setq package-enable-at-startup t) ;; setting it to nil requires package initialize and other stuff and its a lot slower to start.
+;; (setq package-quickstart t) ;; combines all packages into a single package.
+;; (setq package-archives '(("melpa"        . "https://melpa.org/packages/")
+;;			 ("gnu"          . "https://elpa.gnu.org/packages/")
+;;			 ("nongnu"       . "https://elpa.nongnu.org/nongnu/")
+;;			 ("melpa-stable" . "https://stable.melpa.org/packages/")))
+;; (setq package-archive-priorities '(("gnu"    . 99)
+;;				   ("nongnu" . 80)
+;;				   ("melpa"  . 70)
+;;				   ("melpa-stable" . 50)))
+;; (setq package-install-upgrade-built-in t)
+
+;; ;; This results in a more compact output that emphasizes performance
+;; (setq use-package-expand-minimally t)
+;; (setq use-package-minimum-reported-time 0.1)
+;; (setq use-package-enable-imenu-support t)
+;; (setq use-package-always-defer t)
+;; (setq use-package-compute-statistics t)
+#+end_src
+
+** Transparency
+Enabling Transparency
+#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
+;;(add-to-list 'default-frame-alist '(alpha . 95))
+#+end_src
+
+* TODO (rewrite it in useful segments) init.el
+** IMPORTANT PROGRAMS TO LOAD FIRST
+*** Adding the scripts directory to path
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;;; -*- lexical-binding: t; -*-
+(add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
+#+end_src
+
+*** Package Setup
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq package-quickstart t) ;; combines all packages into a single package.
 (setq package-archives '(("melpa"        . "https://melpa.org/packages/")
 			 ("gnu"          . "https://elpa.gnu.org/packages/")
@@ -288,29 +323,6 @@ this stage of initialization."
 (setq use-package-enable-imenu-support t)
 (setq use-package-always-defer t)
 (setq use-package-compute-statistics t)
-#+end_src
-
-** Transparency
-Enabling Transparency
-#+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-;;(add-to-list 'default-frame-alist '(alpha . 95))
-#+end_src
-
-*  init.el
-** IMPORTANT PROGRAMS TO LOAD FIRST
-*** Adding the scripts directory to path
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;;; -*- lexical-binding: t; -*-
-(add-to-list 'load-path "~/dotfiles/emacs/.config/scripts/")
-#+end_src
-
-*** Package Setup
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
-;; Removing the above 3 lines makes the startup 0.2 seconds faster.
-(require 'use-package)
 #+end_src
 
 *** Defining Variables
@@ -398,6 +410,8 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 (my/leader-set "w p" 'windmove-up "window up")
 (my/leader-set "w f" 'windmove-right "window right")
 (my/leader-set "w w" 'other-window "other window")
+(my/leader-set "w u" 'winner-undo "window undo")
+(my/leader-set "w r" 'winner-redo "window redo")
 #+end_src
 
 *** Garbage collection reset and threshold increase and file handler reset
@@ -410,12 +424,12 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 
 *** Benchmarking Tools
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package esup
-  :ensure t
-  :init
-  (setq esup-depth 0))
-(use-package benchmark-init :ensure t :demand t ;;when you need to benchmark
-  :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
+;; (use-package esup
+;;   :ensure t
+;;   :init
+;;   (setq esup-depth 0))
+;; (use-package benchmark-init :ensure t :demand t ;;when you need to benchmark
+;;   :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
 #+end_src
 
 *** Make the frame visible
@@ -428,19 +442,20 @@ This makes sure the frame is made visible after dashboard is open.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (repeat-mode 1)
 (setq echo-keystrokes-help nil) ;;make echo area a little cleaner
-#+end_src
-
-** All the icons.
-This is an icon set that can be used with dashboard, dired, ibuffer and other Emacs programs.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package nerd-icons
-  :ensure t
-  :custom
-  (nerd-icons-font-family user-fixed-pitch-font))
-
-(use-package nerd-icons-dired :ensure t
-  :after nerd-icons
-  :hook (dired-mode . nerd-icons-dired-mode))
+(setq switch-to-prev-buffer-skip 'this) ;; don't switch to buffer currently shown in frame.
+;; don't switch to internal buffers (using popper.el seems like a better case but lets try this)
+(setq switch-to-prev-buffer-skip-regexp
+      (rx bos
+	  (or "*Help*"
+	      "*Messages*"
+	      "*Warnings*"
+	      "*Async Shell Command*"
+	      "*Compile-Log*"
+	      "*Native-compile-Log*"
+	      "*Completions*"
+	      "*shell-command-Output*"
+	      "*Backtrace*")
+	  eos))
 #+end_src
 
 ** Center-Document Mode
@@ -485,7 +500,7 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
   :vc ( :url "https://github.com/karthink/gptel"
 	:rev :newest)
   :custom-face
-  ;; (gptel-context-highlight-face ((t (:background "#2f0c3f"))))
+  (gptel-context-highlight-face ((t (:background unspecified :inherit highlight))))
   :config
   (setq gptel-default-mode 'org-mode)
   (setq gptel-model 'gpt-5.4-mini)
@@ -573,10 +588,16 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
   (set (make-local-variable sym) val))
 
 ;; a fucnton which sets the backend
-(setq  my/gptel-backend
-       (gptel-make-openai "ChatGPT"
-	 :key 'gptel-api-key
-	 :stream t))
+
+(defvar my/gptel-backend nil)
+
+(defun my/ensure-gptel-backend ()
+  "Set `my/gptel-backend' if it is not already set."
+  (unless my/gptel-backend
+    (setq my/gptel-backend
+	  (gptel-make-openai "ChatGPT"
+	    :key 'gptel-api-key
+	    :stream t))))
 
 ;; creating your own gptel buffer with custom preset
 (defun my/gptel-prepare-buffer (preset &optional name)
@@ -588,6 +609,7 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 	     (intern s)))))
   (require 'gptel)
   (require 'gptel-agent)
+  (my/ensure-gptel-backend)
   (let ((buffer (get-buffer-create (format "*gptel-%s*" (or name preset)))))
     (with-current-buffer buffer
       (unless (derived-mode-p 'org-mode)
@@ -608,6 +630,7 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
   (interactive)
   (require 'gptel)
   (require 'gptel-agent)
+  (my/ensure-gptel-backend)
   (let* ((prompt
 	  (read-string
 	   "Ask GPT: "
@@ -731,6 +754,26 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
 	   (emacs-init-time)
 	   (number-to-string (length package-activated-list)))))
 
+;; (with-current-buffer (get-buffer-create "*scratch*")
+;;   (insert
+;;    (format ";;
+;; ;; ▓█████  ███▄ ▄███▓ ▄▄▄       ▄████▄    ██████
+;; ;; ▓█   ▀ ▓██▒▀█▀ ██▒▒████▄    ▒██▀ ▀█  ▒██    ▒
+;; ;; ▒███   ▓██    ▓██░▒██  ▀█▄  ▒▓█    ▄ ░ ▓██▄
+;; ;; ▒▓█  ▄ ▒██    ▒██ ░██▄▄▄▄██ ▒▓▓▄ ▄██▒  ▒   ██▒
+;; ;; ░▒████▒▒██▒   ░██▒ ▓█   ▓██▒▒ ▓███▀ ░▒██████▒▒
+;; ;; ░░ ▒░ ░░ ▒░   ░  ░ ▒▒   ▓▒█░░ ░▒ ▒  ░▒ ▒▓▒ ▒ ░
+;; ;;  ░ ░  ░░  ░      ░  ▒   ▒▒ ░  ░  ▒   ░ ░▒  ░ ░
+;; ;;    ░   ░      ░     ░   ▒   ░        ░  ░  ░
+;; ;;    ░  ░       ░         ░  ░░ ░            ░
+;; ;;                             ░
+;; ;;
+;; ;;   Loading time : %s
+;; ;;   Packages     : %s
+;; ;;
+;; "
+;;	   (emacs-init-time)
+;;	   (number-to-string (length package-activated-list)))))
 (message (emacs-init-time))
 #+end_src
 
@@ -750,28 +793,13 @@ This is an icon set that can be used with dashboard, dired, ibuffer and other Em
   (setq denote-dired-directories-include-subdirectories t))
 #+end_src
 
-*** Denote-org
-Adds the feature to make subtree a new file, and add files contents using a dynamic block.
+** Dired
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package denote-org
-  :ensure t
-  :commands
-  ;; I list the commands here so that you can discover them more
-  ;; easily.  You might want to bind the most frequently used ones to
-  ;; the `org-mode-map'.
-  ( denote-org-link-to-heading
-    denote-org-backlinks-for-heading
-
-    denote-org-extract-org-subtree
-
-    denote-org-convert-links-to-file-type
-    denote-org-convert-links-to-denote-type
-
-    denote-org-dblock-insert-files
-    denote-org-dblock-insert-links
-    denote-org-dblock-insert-backlinks
-    denote-org-dblock-insert-missing-links
-    denote-org-dblock-insert-files-as-headings))
+(use-package dired
+  :ensure nil
+  :hook ((dired-mode . dired-hide-details-mode))
+  :bind (:map dired-mode-map
+	      ("C-`" . (lambda () (interactive) (dired-hide-details-mode 'toggle)))))
 #+end_src
 
 ** Don't clutter
@@ -864,7 +892,7 @@ Eglot (built-in client for the language server protocol)
 	elfeed-show-entry-switch 'switch-to-buffer
 	shr-max-image-proportion 0.6
 	elfeed-search-filter "@2-weeks-ago +unread"
-	elfeed-search-title-max-width 100
+	elfeed-search-title-max-width 70
 	elfeed-search-title-min-width 30
 	elfeed-search-trailing-width 25
 	elfeed-show-unique-buffers nil
@@ -989,6 +1017,10 @@ downloaded hunspell
 		    :height (* user-font-size 10)
 		    :weight 'medium)
 
+;; fallback if some unicode symbols are missing.
+(set-fontset-font t 'symbol "all-the-icons" nil 'prepend)
+(set-fontset-font t 'unicode "all-the-icons" nil 'prepend)
+
 ;; Makes commented text and keywords italics.
 ;; This is working in emacsclient but not emacs.
 ;; Your font must have an italic face available.
@@ -1005,11 +1037,6 @@ downloaded hunspell
 
 (add-to-list 'default-frame-alist `(font . ,user-frame-font))
 (setq-default line-spacing 0.05) ;;default value was 0.06, 0.1,
-
-;; TODO: Rewrite the init in the order of execution.
-;;frame size is dependent upon font size at frame creation. so if you set this before font setting then the frame size for emacsclient and emacs are different.
-(add-to-list 'default-frame-alist '(width . 64))
-(add-to-list 'default-frame-alist '(height . 22))
 #+end_src
 
 ** Git bash utls
@@ -1039,7 +1066,7 @@ This adds various utilitites to emacs without changing my system path.
   (setq imenu-auto-rescan t)) ;; this should solve the issue of it being consistent.
 #+end_src
 
-** Modeline
+** TODO (is it necessary ?) Modeline
 This is the current modeline setup slowly build it up using the funcitons in pratik-modeline.el.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package pratik-modeline
@@ -1048,7 +1075,8 @@ This is the current modeline setup slowly build it up using the funcitons in pra
   :config
   (setq mode-line-compact nil)
   (setq mode-line-right-align-edge 'window) ;; changed from 'right-margin
-  (setq display-time-format "%d-%b %I:%M")
+  (setq display-time-format "%I:%M %d-%b") ;; removed date add by adding %d-%b
+  (setq display-time-default-load-average nil) ;; remove the load average. i don't need it.
   (display-time-mode 1) ;; displays time in modeline
   (setq-default mode-line-format
 	'("%e" mode-line-front-space
@@ -1065,9 +1093,9 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 	  (vc-mode vc-mode)
 	  " "
 	  mode-line-format-right-align
-	  pratik-modeline-pomodoro-icon
 	  pratik-modeline-misc-info
-	  mode-line-end-spaces)))
+	  mode-line-end-spaces
+	  " ")))
 #+end_src
 
 ** Org Mode
@@ -1117,6 +1145,16 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   (setq org-ellipsis " ...")
   (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
 
+  ;; list demontion leads to change in it.
+  (setq org-list-demote-modify-bullet
+	'(("+" . "-") ("-" . "+") ("*" . "+")))
+
+  ;; pomodoro timer function
+  (defun pomodoro ()
+    "Start a Pomodoro Timer."
+    (interactive)
+    (org-timer-set-timer 25)) ;; Start a 25-min timer
+
   ;; Defines cursor-sensor mode for emphasis marker
   (defun my/emphasis-cursor (_win _pos type)
     "Indicate position inside hidden emphasis with bar cursor."
@@ -1148,11 +1186,24 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
   ;; Org-latex formatting
   (setq org-format-latex-options
-      (plist-put
-       (plist-put org-format-latex-options :background "Transparent")
-       :scale 0.9))
+	(plist-put
+	 (plist-put org-format-latex-options :background "Transparent")
+	 :scale 0.9))
   (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
   (setq org-preview-latex-default-process 'dvisvgm)
+
+  ;; Org stars
+  (defun my-org-star ()
+    "Prettify Org headline stars as arrows."
+    (let* ((beg (match-beginning 1))
+	   (end (match-end 1))
+	   (level (- end beg))
+	   (arrow (concat (make-string (max 0 (1- level)) ?-) ">")))
+      (put-text-property beg end 'display arrow)))
+
+  (font-lock-add-keywords
+   'org-mode
+   '(("^\\(\\*+\\)" (1 (prog1 nil (my-org-star))))))
 
   ;; Babel
   (org-babel-do-load-languages
@@ -1164,8 +1215,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
 
 (defvar my/post-startup-packages
-  '(nerd-icons
-    org
+  '(org
     org-macs
     org-compat
     org-element
@@ -1194,13 +1244,19 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 *** Org Superstar
 Org-Bullets successor, nicer bullets.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package org-superstar :ensure t
-  :after org
-  :config
-  (setq org-superstar-headline-bullets-list
-      '("󰪥 " " " "󰋸 " " "))
-  (setq org-superstar-item-bullet-alist '((42 . ?󰫢) (43 . ?) (45 . ?)))
-  (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
+;; (use-package org-superstar :ensure t
+;;   :after org
+;;   :config
+;;   ;; these are simpler and frankly look good. maybe can be used.
+;;   (setq org-superstar-leading-bullet "-")
+;;   (setq org-superstar-headline-bullets-list
+;;       '(">"))
+;;   (setq org-superstar-item-bullet-alist '((42 . 42) (43 . 43) (45 . 45)))
+;;   ;; (setq org-superstar-item-bullet-alist '((42 . ?) (43 . ?) (45 . ?󰍴)))
+;;   ;; (setq org-superstar-headline-bullets-list
+;;   ;;     '(?󰪥 ? ?󰋸 ?))
+;;   ;; (setq org-superstar-item-bullet-alist '((42 . ?󰫢) (43 . ?) (45 . ?)))
+;;   (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+end_src
 
 *** Org drill
@@ -1213,7 +1269,7 @@ Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode
     Use Hyperbole to quickly jump to notes via smart file links.
 This gives you spaced repetition with automatic rescheduling and seamless navigation.
 
-*** Org DnD image Advice
+*** TODO (is this necessary, something related to it in emacs 31) Org DnD image Advice
 This is a small code to automatically trim handwritten notes, when adding them.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;;;; Config
@@ -1402,7 +1458,7 @@ only useful if you are editing tex files.
   (setq python-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe"))
 #+end_src
 
-*** Python-Venv
+*** TODO (remove this) Python-Venv
 You can use .dir-locals.el for each project. Repl is easy to configure but the shell launch configuration is cumbersome.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package pyvenv :ensure t
@@ -1422,12 +1478,10 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
 (use-package modus-themes
-  :ensure t
-  :demand t
-  :vc ( :url "https://github.com/protesilaos/modus-themes"
-	:rev :newest)
+  :ensure nil
   :init
-  (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
+  (load-theme 'modus-vivendi)
+  ;; (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
 	modus-themes-to-rotate modus-themes-items
@@ -1437,39 +1491,28 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 	modus-themes-bold-constructs t
 	modus-themes-completions '((t . (bold)))
 	modus-themes-prompts '(bold))
-
-  ;; load a theme
-  (modus-themes-load-theme 'modus-operandi)
   )
 
 ;; higlights the current line
-(global-hl-line-mode 1)
+;; (use-package hl-line
+;;   :ensure nil
+;;   :config
+;;   (global-hl-line-mode 1) ;; not useful, and kind of distracting.
+;;   (setq hl-line-sticky-flag nil) ;; make it only visible in current window
+;;   )
 
-(defun my-set-face-attributes (frame)
-  (with-selected-frame frame
-    (set-face-attribute 'mode-line nil :box 'unspecified)
-    (let ((bg (face-background 'default)))
-      ;; (set-face-attribute 'mode-line-inactive nil
-      ;;			  :box 'unspecified
-      ;;			  :background "#f2f2f2")
 
-      (set-face-attribute 'fringe nil
-			  :background bg
-			  :foreground bg))))
+(defun my-set-face-attributes ()
+  (let ((bg (face-background 'default nil t)))
+    (set-face-attribute 'fringe nil :background bg :foreground bg)))
 
-;; ;; (set-face-attribute 'mode-line-active nil
-;;			:box 'unspecified
-;;			:background "#efeff2")))
-;;			:background "#c1c9ff"
-
-(add-hook 'after-make-frame-functions 'my-set-face-attributes)
+(add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
+(add-hook 'after-init-hook #'my-set-face-attributes)
 
 ;; Set up the initial frame only if not in daemon mode
 (when (not (daemonp))
-  (my-set-face-attributes (selected-frame)))
+  (my-set-face-attributes))
 #+end_src
-
-#+RESULTS:
 
 ** Visual Upgrades
 The following settings are simple modes that are enabled (or disabled) so that Emacs functions more like you would expect a proper editor/IDE to function.
@@ -1480,9 +1523,10 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (defalias 'yes-or-no-p 'y-or-n-p) ;; y and n instead of yes or no.
 (setq ring-bell-function 'ignore)
 (setq visible-bell t)
+(mouse-avoidance-mode 'banish) ;; banish the mouse lol.
 #+end_src
 
-** Vertico + orderless + marginilia setup
+** TODO (remove vertico and use fido-mode) Vertico + orderless setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; The `vertico' package applies a vertical layout to the minibuffer.
 (use-package vertico
@@ -1490,8 +1534,6 @@ The following settings are simple modes that are enabled (or disabled) so that E
   :hook (after-init . vertico-mode) ;; this is better than normal mode
   :init
   (setq vertico-cycle t)
-  ;; setting this is necessary to have annotations in unobtrusive mode
-  (setq vertico-flat-annotate t)
   :config
   (vertico-unobtrusive-mode)
   ;;minibuffer setting to stop showing default's as unobtrusive mode already shows it
@@ -1500,76 +1542,6 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (setq scroll-margin 3) ;; scrolls only if i go below last 3 lines, 3 so that the minibuffer resize does not automatically scroll
   (setq vertico-resize 'fixed) ;; makes it windows scroll less
   )
-
-;; The `marginalia' package provides helpful annotations next to
-;; completion candidates in the minibuffer.
-(use-package marginalia
-  :ensure t
-  :hook (after-init . marginalia-mode)
-  :config
-  ;; defining my annotators
-  (defun my/marginalia-annotate-function (cand)
-    "Annotate function CAND with its documentation string."
-    (when-let* ((sym (intern-soft cand)))
-      (marginalia--fields
-       (:left (marginalia-annotate-binding cand))
-       (" |" :face 'marginalia-documentation)
-       ((marginalia--function-doc sym)
-	:truncate 1.0 :face 'marginalia-documentation))))
-
-  (defface my/marginalia-separator-face
-    '((t :inherit modus-themes-completion-match-3 :weight normal))
-    "Modus-based separator face without bold.")
-
-  (defun my/marginalia-annotate-variable (cand)
-    "Annotate variable CAND with its documentation string."
-    (when-let* ((sym (intern-soft cand)))
-      (marginalia--fields
-       (" |" :face 'marginalia-documentation)
-       ((or (documentation-property sym 'variable-documentation)
-	    (marginalia--definition-prefix sym))
-	:truncate 1.0 :face 'marginalia-documentation)
-       (":" :face 'my/marginalia-separator-face)
-       ((marginalia--variable-value sym) :truncate 0.5 :face 'my/marginalia-separator-face))))
-
-  (defun my/marginalia-annotate-command (cand)
-    "Annotate command CAND with its documentation string."
-    (when-let* ((sym (intern-soft cand)))
-      (concat
-       (marginalia-annotate-binding cand)
-       (propertize " |" 'face 'marginalia-documentation)
-       (marginalia--documentation (marginalia--function-doc sym)))))
-
-  ;; changing annotators
-  (dolist (spec '((variable . my/marginalia-annotate-variable)
-		  (function . my/marginalia-annotate-function)
-		  (command . my/marginalia-annotate-command)))
-    (setcdr (assq (car spec) marginalia-annotators)
-	    (list (cdr spec) 'builtin 'none)))
-
-  (dolist (key '(file buffer bookmark))  ;; not needed annotations.
-    (let ((entry (assq key marginalia-annotators)))
-      (when entry
-	(setcdr entry (cddr entry)))))
-
-  ;; i want the default to be builtin and when required switch to mine
-  (defun marginalia-toggle ()
-    (interactive)
-    (mapc
-     (lambda (x)
-       (setcdr x (append (reverse (remq 'none (cdr x))) '(none))))
-     marginalia-annotators))
-
-  (marginalia-toggle)
-
-  (define-key minibuffer-local-map (kbd "C-f") #'marginalia-toggle)
-  (define-key minibuffer-local-map (kbd "C-b") #'marginalia-toggle)
-
-  ;; if you don't use unicode, it just strips everything away and it looks like its merged.
-  (setq marginalia-separator "\u200B ")
-
-  ;; needed only for unobtrusive and flat mode.
-  (setq marginalia-align-offset -50))
 
 ;; The `orderless' package lets the minibuffer use an out-of-order
 ;; pattern matching algorithm.
@@ -1606,24 +1578,34 @@ Tells you the key bindings
 	which-key-add-column-padding 1
 	which-key-max-display-columns nil
 	which-key-min-display-lines 6
-	which-key-side-window-slot -10
 	which-key-side-window-max-height 0.25
 	which-key-idle-delay 2
-	which-key-max-description-length 25
-	which-key-allow-imprecise-window-fit nil
-	which-key-separator " -> "))
+	which-key-max-description-length 30
+	which-key-min-column-description-width 30
+	which-key-allow-imprecise-window-fit t
+	which-key-separator " > "))
 
 ;; which-key-posframe (load only when which-key is active)
 (use-package which-key-posframe
   :ensure t
   :after which-key
-  :hook (which-key-mode . which-key-posframe-mode))
+  :hook (which-key-mode . which-key-posframe-mode)
+  :config
+  )
 #+END_src
 
 ** Whitespace-cleanup
 Fix whitespaces on file save.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'before-save-hook #'whitespace-cleanup)
+#+end_src
+
+** Winner Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package winner-mode
+  :ensure nil
+  :config
+  (winner-mode 1))
 #+end_src
 
 ** Xref
@@ -1664,4 +1646,15 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 (global-set-key (kbd "C--") 'text-scale-decrease)
 (global-set-key (kbd "<C-wheel-up>") 'text-scale-increase)
 (global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease)
+#+end_src
+
+** helper functions
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(defun handy ()
+  (interactive)
+  (w32-shell-execute "open" "C:/Users/PRATIK/handy/handy.exe")) ;; stealing the emacs focus
+
+(defun handy-kill ()
+  (interactive)
+  (call-process "taskkill" nil nil nil "/IM" "handy.exe" "/F"))
 #+end_src

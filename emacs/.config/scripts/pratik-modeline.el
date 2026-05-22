@@ -533,9 +533,7 @@ Specific to the current window's mode line.")
   (dolist (win (window-list))
     (with-current-buffer (window-buffer win)
       (when (boundp 'pratik-modeline-misc-info)
-	(let ((new (if (eq win (selected-window))
-		       (list "" mode-line-misc-info)
-		     '(""))))
+	(let ((new (list "" mode-line-misc-info)))
 	  (unless (equal new pratik-modeline-misc-info)
 	    (setq pratik-modeline-misc-info new)
 	    (force-mode-line-update win))))))
@@ -544,23 +542,6 @@ Specific to the current window's mode line.")
 (add-hook 'window-selection-change-functions (lambda (_win) (pratik-modeline-update-misc-info)))
 (add-hook 'buffer-list-update-hook #'pratik-modeline-update-misc-info)
 (add-hook 'window-configuration-change-hook #'pratik-modeline-update-misc-info)
-
-
-;;;; Pomodoro timer
-
-(defun pratik-modeline-pomodoro ()
-  "Start a Pomodoro Timer."
-  (interactive)
-  (org-timer-set-timer 25)) ;; Start a 25-min timer
-
-;; Define a function to add the alarm icon to the modeline
-(setq pratik-modeline-pomodoro-icon
-      (propertize "󰓎 "
-		  'face '(:weight bold)
-		  'help-echo "Click to start a Pomodoro timer!"
-		  'local-map (let ((map (make-sparse-keymap)))
-			       (define-key map [mode-line down-mouse-1] #'pratik-modeline-pomodoro)
-			       map)))
 
 ;;;; Risky local variables
 
@@ -577,7 +558,6 @@ Specific to the current window's mode line.")
 		     pratik-modeline-vc-branch
 		     pratik-modeline-flymake
 		     pratik-modeline-eglot
-		     pratik-modeline-pomodoro-icon
 		     pratik-modeline-misc-info))
   (put construct 'risky-local-variable t))
 
