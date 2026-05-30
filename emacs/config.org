@@ -1134,7 +1134,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
    ;; indentation behaviour
    org-startup-indented nil
-   org-hide-leading-stars nil
+   org-hide-leading-stars t
    org-adapt-indentation nil
    org-list-indent-offset 0)
 
@@ -1192,19 +1192,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
   (setq org-preview-latex-default-process 'dvisvgm)
 
-  ;; Org stars
-  (defun my-org-star ()
-    "Prettify Org headline stars as arrows."
-    (let* ((beg (match-beginning 1))
-	   (end (match-end 1))
-	   (level (- end beg))
-	   (arrow (concat (make-string (max 0 (1- level)) ?-) ">")))
-      (put-text-property beg end 'display arrow)))
-
-  (font-lock-add-keywords
-   'org-mode
-   '(("^\\(\\*+\\)" (1 (prog1 nil (my-org-star))))))
-
   ;; Babel
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -1223,7 +1210,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     org-fold
     org-agenda
     org-capture
-    org-superstar
     org-tempo)
   "Packages to load incrementally after startup.")
 
@@ -1239,24 +1225,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
  (lambda ()
    (message "Starting incremental preload")
    (my/load-packages-incrementally)))
-#+end_src
-
-*** Org Superstar
-Org-Bullets successor, nicer bullets.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package org-superstar :ensure t
-;;   :after org
-;;   :config
-;;   ;; these are simpler and frankly look good. maybe can be used.
-;;   (setq org-superstar-leading-bullet "-")
-;;   (setq org-superstar-headline-bullets-list
-;;       '(">"))
-;;   (setq org-superstar-item-bullet-alist '((42 . 42) (43 . 43) (45 . 45)))
-;;   ;; (setq org-superstar-item-bullet-alist '((42 . ?) (43 . ?) (45 . ?󰍴)))
-;;   ;; (setq org-superstar-headline-bullets-list
-;;   ;;     '(?󰪥 ? ?󰋸 ?))
-;;   ;; (setq org-superstar-item-bullet-alist '((42 . ?󰫢) (43 . ?) (45 . ?)))
-;;   (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+end_src
 
 *** Org drill
@@ -1480,7 +1448,7 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 (use-package modus-themes
   :ensure nil
   :init
-  (load-theme 'modus-vivendi)
+  (load-theme 'modus-operandi)
   ;; (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
