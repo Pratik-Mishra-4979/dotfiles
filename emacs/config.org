@@ -271,23 +271,6 @@ this stage of initialization."
 ** package setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
 (setq package-enable-at-startup t) ;; setting it to nil requires package initialize and other stuff and its a lot slower to start.
-;; (setq package-quickstart t) ;; combines all packages into a single package.
-;; (setq package-archives '(("melpa"        . "https://melpa.org/packages/")
-;;			 ("gnu"          . "https://elpa.gnu.org/packages/")
-;;			 ("nongnu"       . "https://elpa.nongnu.org/nongnu/")
-;;			 ("melpa-stable" . "https://stable.melpa.org/packages/")))
-;; (setq package-archive-priorities '(("gnu"    . 99)
-;;				   ("nongnu" . 80)
-;;				   ("melpa"  . 70)
-;;				   ("melpa-stable" . 50)))
-;; (setq package-install-upgrade-built-in t)
-
-;; ;; This results in a more compact output that emphasizes performance
-;; (setq use-package-expand-minimally t)
-;; (setq use-package-minimum-reported-time 0.1)
-;; (setq use-package-enable-imenu-support t)
-;; (setq use-package-always-defer t)
-;; (setq use-package-compute-statistics t)
 #+end_src
 
 ** Transparency
@@ -344,6 +327,8 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 
 *** Key Bindings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(global-set-key (kbd "C-c a") 'org-agenda)
+
 (defmacro my/leader-set (key cmd label)
   `(progn
      ,(when cmd
@@ -445,19 +430,36 @@ This makes sure the frame is made visible after dashboard is open.
 (setq switch-to-prev-buffer-skip 'this) ;; don't switch to buffer currently shown in frame.
 ;; don't switch to internal buffers (using popper.el seems like a better case but lets try this)
 (setq switch-to-prev-buffer-skip-regexp
-      (rx bos
-	  (or "*Help*"
-	      "*Messages*"
-	      "*Warnings*"
-	      "*Async Shell Command*"
-	      "*Compile-Log*"
-	      "*Native-compile-Log*"
-	      "*Completions*"
-	      "*shell-command-Output*"
-	      "*Backtrace*")
-	  eos))
+      (regexp-opt
+       '("*Help*"
+	 "*Messages*"
+	 "*Warnings*"
+	 "*Async Shell Command*"
+	 "*Compile-Log*"
+	 "*Native-compile-Log*"
+	 "*Completions*"
+	 "*shell-command-Output*"
+	 "*Backtrace*")
+       'symbols))
 #+end_src
-
+** Break Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(setq type-break-mode t) ;; prompts for break after some time or when some keyworkd threshold is reached.
+#+end_src
+** Bookmarks
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package bookmark
+  :ensure nil
+  :config
+  ;; Emacs 29 displays a bookmark icon on the fringe.
+  (setq bookmark-fringe-mark nil)
+  ;; Write changes to the bookmark file as soon as 1 modification is
+  ;; made (addition or deletion).  Otherwise Emacs will only save the
+  ;; bookmarks when it closes, which may never happen properly
+  ;; (e.g. power failure).
+  ;; (setq bookmark-save-flag 1)
+  )
+#+end_src
 ** Center-Document Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defvar emacs-solo-center-document-desired-width 100
@@ -487,9 +489,6 @@ This makes sure the frame is made visible after dashboard is open.
       (add-hook 'window-configuration-change-hook #'emacs-solo/center-document--adjust-margins 'append 'local)
     (remove-hook 'window-configuration-change-hook #'emacs-solo/center-document--adjust-margins 'local))
   (emacs-solo/center-document--adjust-margins))
-
-
-(add-hook 'org-mode-hook #'emacs-solo/center-document-mode)
 #+end_src
 
 ** ChatGPT
@@ -503,6 +502,7 @@ This makes sure the frame is made visible after dashboard is open.
   (gptel-context-highlight-face ((t (:background unspecified :inherit highlight))))
   :config
   (setq gptel-default-mode 'org-mode)
+  (setq gptel-use-header-line nil) ;; TODO: nil because its also being centered and its width is big and no option to customize the items to be displayed. raise a requrest in gptel to get this fixed.
   (setq gptel-model 'gpt-5.4-mini)
   (setq gptel-include-tool-results nil)
   (setq gptel-highlight-methods '(face))
@@ -532,7 +532,8 @@ This makes sure the frame is made visible after dashboard is open.
     :backend "ChatGPT"
     :model 'gpt-5.4-mini
     :system
-    '("<role_and_behavior>
+    '("
+      <role_and_behavior>
       You are an assistant in Emacs Org-Mode.
       </role_and_behavior>
 
@@ -555,7 +556,8 @@ This makes sure the frame is made visible after dashboard is open.
     :backend "ChatGPT"
     :model 'gpt-5.4-mini
     :system
-    '("<role_and_behavior>
+    '("
+      <role_and_behavior>
       You are an assistant in Emacs Org-Mode.
       </role_and_behavior>
 
@@ -702,6 +704,25 @@ This makes sure the frame is made visible after dashboard is open.
 ;;                   (my/gptel-windows-on-frame))))
 #+end_src
 
+** chess
+lichess package, mouse support is not working.
+#+begin_src emacs-lisp
+(use-package lichess
+  :ensure t
+  :commands (lichess lichess-tv lichess-game-watch)
+  :vc (:url "https://github.com/tmythicator/lichess.el"
+	    :rev :newest)
+  :custom
+  (lichess-token
+   (auth-source-pick-first-password
+    :host "lichess.org"
+    :user "apikey"))
+  (lichess-core-chess-font "DejaVu Sans Mono")
+  (lichess-board-gui-light-square-color "#f0d9b5")
+  (lichess-board-gui-dark-square-color "#b58863")
+  (lichess-ai-default-level 3))
+#+end_src
+
 ** Corfu
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
@@ -790,7 +811,36 @@ This makes sure the frame is made visible after dashboard is open.
 	 ("C-c n g" . denote-grep))
   :config (setq denote-directory (expand-file-name "~/notes/"))
   (denote-rename-buffer-mode 1)
-  (setq denote-dired-directories-include-subdirectories t))
+  (setq denote-dired-directories-include-subdirectories t)
+  (setq denote-org-front-matter
+	"#+title: %s
+#+date: %s
+#+filetags: %s
+#+identifier: %s
+#+signature: %s
+")
+  (setq denote-templates
+      '((note . "#+startup: latexpreview\n\n\n\n\n\n* Further readings\n-\n* Connections\n-")))
+  (setq denote-prompts '(template title keywords))
+  )
+
+;;; Denote-org extension
+(use-package denote-org
+  :ensure t
+  :commands
+  ( denote-org-link-to-heading
+    denote-org-backlinks-for-heading
+
+    denote-org-extract-org-subtree
+
+    denote-org-convert-links-to-file-type
+    denote-org-convert-links-to-denote-type
+
+    denote-org-dblock-insert-files
+    denote-org-dblock-insert-links
+    denote-org-dblock-insert-backlinks
+    denote-org-dblock-insert-missing-links
+    denote-org-dblock-insert-files-as-headings))
 #+end_src
 
 ** Dired
@@ -799,7 +849,42 @@ This makes sure the frame is made visible after dashboard is open.
   :ensure nil
   :hook ((dired-mode . dired-hide-details-mode))
   :bind (:map dired-mode-map
-	      ("C-`" . (lambda () (interactive) (dired-hide-details-mode 'toggle)))))
+	      ("C-`" . (lambda () (interactive) (dired-hide-details-mode 'toggle))))
+  :config
+  ;; removes multiple buffers of dired
+  (setq dired-kill-when-opening-new-dired-buffer t)
+  (setq dired-auto-revert-buffer #'dired-directory-changed-p) ; also see `dired-do-revert-buffer'
+  (setq dired-clean-up-buffers-too t)
+  (setq dired-clean-confirm-killing-deleted-buffers t)
+  (setq dired-recursive-copies 'always)
+  (setq dired-recursive-deletes 'always)
+  (setq delete-by-moving-to-trash t)
+  (setq dired-create-destination-dirs 'ask)
+  (setq dired-create-destination-dirs-on-trailing-dirsep t) ; Emacs 29
+  (setq wdired-create-parent-directories t)
+  )
+#+end_src
+
+** Diff & Ediff
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package diff
+  :ensure nil
+  :config
+  ;; You cannot expect the syntax highlighting of themes to look
+  ;; equally readabable against what typically are red and green
+  ;; backgrounds.  This should be opt-in by default, not opt-out.
+  (setq diff-font-lock-syntax nil))
+
+;;;; Ediff
+(use-package ediff
+  :ensure nil
+  :config
+  ;; Ediff is virtually unusable without those.  Especially on tiling
+  ;; window managers.  But even on a regular desktop environment it is
+  ;; confusing and cumbersome to have the control panel in another
+  ;; frame.
+  (setq ediff-split-window-function 'split-window-horizontally)
+  (setq ediff-window-setup-function 'ediff-setup-windows-plain))
 #+end_src
 
 ** Don't clutter
@@ -879,10 +964,15 @@ Eglot (built-in client for the language server protocol)
   :bind (("C-c r" . elfeed)
 	 :map elfeed-search-mode-map
 	 ("n" . elfeed-next-entry)
-	 ("q" . elfeed-kill-buffer)
-	 ("p" . elfeed-previous-entry))
+	 ("q" . kill-current-buffer)
+	 ("p" . elfeed-previous-entry)
+	 :map elfeed-show-mode-map
+	 ("q" . kill-current-buffer))
 
-  :hook (elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
+  :hook
+  (elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
+  (elfeed-show-mode . emacs-solo/center-document-mode) ;; center document in show mode.
+
   ;; (elfeed-show-mode . (lambda () (display-line-numbers-mode 0))) ;; Turn off line numbers in elfeed-show-mode.
   ;; (elfeed-mode . (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes.
 
@@ -890,14 +980,11 @@ Eglot (built-in client for the language server protocol)
   (which-key-add-key-based-replacements "C-c r" "RSS")
   (setq elfeed-enclosure-default-dir "~/Downloads/"
 	elfeed-show-entry-switch 'switch-to-buffer
-	shr-max-image-proportion 0.6
 	elfeed-search-filter "@2-weeks-ago +unread"
 	elfeed-search-title-max-width 70
 	elfeed-search-title-min-width 30
 	elfeed-search-trailing-width 25
-	elfeed-show-unique-buffers nil
-	;;if shr use fonts is set to true then emacs respects html fonts
-	shr-use-fonts nil)
+	elfeed-show-unique-buffers nil)
 
   :config
   (which-key-add-key-based-replacements "C-c r" "RSS")
@@ -913,6 +1000,17 @@ Eglot (built-in client for the language server protocol)
 	  ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
 	  ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
 	  ("https://rbi.org.in/notifications_rss.xml" RBI notif)))
+
+  ;; advice to remove the feed column
+  (advice-add 'elfeed-search-print-entry--default :override
+	    (lambda (entry)
+	      (pcase-let ((`(,date . ,date-width) (elfeed-search--column-date entry))
+			  (`(,title . ,title-width) (elfeed-search--column-title entry))
+			  (tags (elfeed-search--column-tags entry)))
+		(insert date
+			(propertize " " 'display `(space :align-to ,(+ 2 date-width)))
+			title
+			(or tags "")))))
   )
 
 ;; (use-package elfeed-tube
@@ -1018,8 +1116,8 @@ downloaded hunspell
 		    :weight 'medium)
 
 ;; fallback if some unicode symbols are missing.
-(set-fontset-font t 'symbol "all-the-icons" nil 'prepend)
-(set-fontset-font t 'unicode "all-the-icons" nil 'prepend)
+(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols 2") nil 'prepend)
+(set-fontset-font t 'unicode (font-spec :family "Unifont") nil 'append)
 
 ;; Makes commented text and keywords italics.
 ;; This is working in emacsclient but not emacs.
@@ -1064,6 +1162,21 @@ This adds various utilitites to emacs without changing my system path.
   :ensure nil
   :config
   (setq imenu-auto-rescan t)) ;; this should solve the issue of it being consistent.
+#+end_src
+
+** isearch
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package isearch
+  :ensure nil
+  :config
+  ;; these three make it so that if words have something in between them they still match.
+  (setq search-whitespace-regexp ".*?")
+  (setq isearch-lax-whitespace t)
+  (setq isearch-regexp-lax-whitespace nil)
+
+  (setq isearch-lazy-count t)
+  (setq lazy-count-prefix-format "(%s/%s) ")
+  (setq lazy-count-suffix-format nil))
 #+end_src
 
 ** TODO (is it necessary ?) Modeline
@@ -1111,7 +1224,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   ;; (org-level-4 ((t (:inherit outline-4 :height 1.075))))
   ;; (org-level-5 ((t (:inherit outline-5 :height 1.05))))
   ;; (org-level-6 ((t (:inherit outline-5 :height 1.025))))
-
   :config
   (setopt org-export-backends '(ascii html icalendar latex odt md))
 
@@ -1177,6 +1289,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
 
   ;; Hooks
+  (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
   (add-hook 'org-mode-hook 'variable-pitch-mode)
   (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
   (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
@@ -1198,9 +1311,28 @@ TODO: need to make sure that all the org settings are in use-package org block. 
    '((python . t)
      (emacs-lisp . t)))
 
-  (setq org-confirm-babel-evaluate nil))
+  (setq org-confirm-babel-evaluate nil)
+  )
 
+;;; org-hide face
 
+;; for modus-themes or ef-themes
+;; (defun my/org-hide-face ()
+;;   (set-face-attribute 'org-hide nil
+;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
+;;		      :weight 'light))
+
+;; (add-hook 'org-mode-hook #'my/org-hide-face)
+
+;; for doric-themes
+(defun my/org-hide-face ()
+  (set-face-attribute 'org-hide nil
+		      :foreground (face-attribute 'internal-border :foreground nil t)
+		      :weight 'light))
+
+(add-hook 'org-mode-hook #'my/org-hide-face)
+
+;; incremental loading
 (defvar my/post-startup-packages
   '(org
     org-macs
@@ -1427,18 +1559,45 @@ only useful if you are editing tex files.
 #+end_src
 
 *** TODO (remove this) Python-Venv
-You can use .dir-locals.el for each project. Repl is easy to configure but the shell launch configuration is cumbersome.
+- Note taken on [2026-06-07 Sun 23:28] \\
+  You can use .dir-locals.el for each project. Repl is easy to configure but the shell launch configuration is cumbersome. this seems tought and time consuming.here are few resources to look at later
+  https://www.reddit.com/r/emacs/comments/1k6corx/small_bashrc_and_elisp_tricks_to_auto_activate/
+  https://github.com/jorgenschaefer/pyvenv/blob/master/pyvenv.el
+
+  this is from a person who replied to me on this post:
+  https://www.reddit.com/r/emacs/comments/1tylkdz/projectx_revived_with_emacs_30_support/
+  https://github.com/alberti42/emacs-config/blob/6f94517695e8e21de151a3e2182137417f988040/pyenv-config.el#L1
+
+  finally:
+  https://dalanicolai.github.io/posts/fixing-org-mode-coding-assistance/#introduction
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package pyvenv :ensure t
-  :hook (python-mode . pyvenv-mode))
+  :hook (python-ts-mode . pyvenv-mode))
 #+end_src
 
 ** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(setq shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")  ;; Git Bash path
+(setq shell-file-name "bash")  ;; Git Bash path
 (setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
-(setq explicit-bash-args '("--login" "-i"))
+(setq explicit-bash.exe-args '("--login"))
+(setq explicit-shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")
+
+;; copied form  https://stackoverflow.com/questions/45540646/msys2-inferior-shell-in-emacs-on-windows
+#+end_src
+
+** Shr
+for html viewing defaults, used in elfeed aswell.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package shr
+  :ensure nil
+  :config
+  ;; this is bad for visibility
+  (setq shr-use-colors nil)
+  ;; if shr use fonts is set to true then emacs respects html fonts
+  (setq shr-use-fonts nil)
+  ;; some images are too big
+  (setq shr-max-image-proportion 0.6))
 #+end_src
 
 ** Themes
@@ -1448,7 +1607,7 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 (use-package modus-themes
   :ensure nil
   :init
-  (load-theme 'modus-operandi)
+  ;; (load-theme 'modus-operandi)
   ;; (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
@@ -1460,6 +1619,20 @@ emacs on windows is using cmdproxy.exe which has weird syntax. here we configure
 	modus-themes-completions '((t . (bold)))
 	modus-themes-prompts '(bold))
   )
+
+(use-package doric-themes
+  :ensure t
+  :vc (:url "https://github.com/protesilaos/doric-themes"
+	    :rev :newest)
+  :demand t
+  :config
+  (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
+  (setq doric-themes-to-rotate doric-themes-collection)
+
+  (doric-themes-select 'doric-marble))
+
+;; dark theme every day at 5pm.
+(run-at-time "17:00" 86400 #'doric-themes-toggle)
 
 ;; higlights the current line
 ;; (use-package hl-line
@@ -1494,7 +1667,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (mouse-avoidance-mode 'banish) ;; banish the mouse lol.
 #+end_src
 
-** TODO (remove vertico and use fido-mode) Vertico + orderless setup
+** TODO (remove vertico and use fido-mode) Vertico + orderless + embark setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; The `vertico' package applies a vertical layout to the minibuffer.
 (use-package vertico
@@ -1511,12 +1684,28 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (setq vertico-resize 'fixed) ;; makes it windows scroll less
   )
 
+;;; COMPLETION
 ;; The `orderless' package lets the minibuffer use an out-of-order
 ;; pattern matching algorithm.
 (use-package orderless
   :ensure t
   :init
-  (setq completion-styles '(orderless basic)))
+  (setq completion-styles '(orderless flex basic)))
+
+;; added it back as emabark is useful when we want to perform actions on the file.
+(use-package embark
+  :ensure t
+  :bind (("C-." . embark-act)
+	 :map minibuffer-local-map
+	 ("C-c C-c" . embark-collect)
+	 ("C-c C-e" . embark-export))
+  :config
+  (setq embark-prompter 'embark-completing-read-prompter) ;; select actions using minibuffer
+  ;; do not show embark buffer only minibuffer
+  (setq embark-indicators
+      '(embark-minimal-indicator  ; default is embark-mixed-indicator
+	embark-highlight-indicator
+	embark-isearch-highlight-indicator)))
 
 ;; The built-in `savehist-mode' saves minibuffer histories.  Vertico
 ;; can then use that information to put recently selected options at
