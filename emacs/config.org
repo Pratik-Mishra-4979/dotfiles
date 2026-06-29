@@ -3,7 +3,7 @@
 #+DESCRIPTION: Pratik's personal Emacs config.
 #+STARTUP: content
 
-*  early-init.el
+* early-init.el
 ** Frame Settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
 ;;; -*- lexical-binding: t; -*-
@@ -279,8 +279,9 @@ Enabling Transparency
 ;;(add-to-list 'default-frame-alist '(alpha . 95))
 #+end_src
 
+
 * TODO (rewrite it in useful segments) init.el
-** IMPORTANT PROGRAMS TO LOAD FIRST
+** Important things to load first.
 *** Adding the scripts directory to path
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;;; -*- lexical-binding: t; -*-
@@ -327,8 +328,6 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 
 *** Key Bindings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(global-set-key (kbd "C-c a") 'org-agenda)
-
 (defmacro my/leader-set (key cmd label)
   `(progn
      ,(when cmd
@@ -346,6 +345,7 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 (my/leader-set "t" nil "toggles")
 (my/leader-set "l" nil "LLM")
 (my/leader-set "w" nil "windows")
+(my/leader-set "i" nil "insert")
 
 ;; files
 (my/leader-set "f r" 'recentf "recent files")
@@ -397,6 +397,10 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 (my/leader-set "w w" 'other-window "other window")
 (my/leader-set "w u" 'winner-undo "window undo")
 (my/leader-set "w r" 'winner-redo "window redo")
+
+;; insert
+(my/leader-set "i e" 'emoji-insert "character")
+(my/leader-set "i c" 'insert-char "emoji")
 #+end_src
 
 *** Garbage collection reset and threshold increase and file handler reset
@@ -411,10 +415,14 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; (use-package esup
 ;;   :ensure t
+;;   :demand t
 ;;   :init
 ;;   (setq esup-depth 0))
+
+;;; does not work (check it out later)
 ;; (use-package benchmark-init :ensure t :demand t ;;when you need to benchmark
-;;   :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
+;;   :config
+;;   (add-hook 'after-init-hook 'benchmark-init/deactivate))
 #+end_src
 
 *** Make the frame visible
@@ -426,7 +434,19 @@ This makes sure the frame is made visible after dashboard is open.
 *** Repeat mode and other emacs- settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (repeat-mode 1)
-(setq echo-keystrokes-help nil) ;;make echo area a little cleaner
+
+;; for echo area configuration.
+(use-package help
+  :ensure nil
+  :init
+  (setq echo-keystrokes-help nil) ;;make echo area a little cleaner
+  (setq suggest-key-bindings 0) ;; if set to nil, keybinds won't show in completions. with 0 they are not shown in echo area just printed in messages.
+  :config
+  (advice-add
+   'execute-extended-command--describe-binding-msg
+   :override
+   (lambda (&rest _args) nil)))
+
 (setq switch-to-prev-buffer-skip 'this) ;; don't switch to buffer currently shown in frame.
 ;; don't switch to internal buffers (using popper.el seems like a better case but lets try this)
 (setq switch-to-prev-buffer-skip-regexp
@@ -441,7 +461,16 @@ This makes sure the frame is made visible after dashboard is open.
 	 "*shell-command-Output*"
 	 "*Backtrace*")
        'symbols))
+
+;; make emacs input automatic line breaks.
+(setq-default fill-column 80)
+(add-hook 'text-mode-hook #'auto-fill-mode)
+
+;; lock *scratch* buffer so that its not killed accidentaly
+(with-current-buffer "*scratch*"
+  (emacs-lock-mode 'kill))
 #+end_src
+
 ** Break Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq type-break-mode t) ;; prompts for break after some time or when some keyworkd threshold is reached.
@@ -502,7 +531,172 @@ This makes sure the frame is made visible after dashboard is open.
   (gptel-context-highlight-face ((t (:background unspecified :inherit highlight))))
   :config
   (setq gptel-default-mode 'org-mode)
-  (setq gptel-use-header-line nil) ;; TODO: nil because its also being centered and its width is big and no option to customize the items to be displayed. raise a requrest in gptel to get this fixed.
+
+  ;;; header line conifg
+  (setq gptel-use-header-line t) ;; TODO: nil because its also being centered and its width is big and no option to customize the items to be displayed. raise a requrest in gptel to get this fixed.
+  (defcustom gptel-header-line-fragments
+    '(usage tools track-media context system model)
+    "Fragments to show in the gptel header line.
+
+The value is a list of symbols. Supported fragments are:
+- usage
+- tools
+- track-media
+- context
+- system
+- model
+- preset
+
+The order in this list controls the display order."
+    :type '(repeat (choice (const usage)
+			   (const tools)
+			   (const track-media)
+			   (const context)
+			   (const system)
+			   (const model)
+			   (const preset))
+		   :group 'gptel))
+
+  (defun gptel--header-line-fragment-usage ()
+    (and-let* ((idx (car-safe gptel--token-usage-strings))
+	       (entry (or (nth (1+ idx) gptel--token-usage-strings)
+			  "[usage...]"))
+	       (noinfo "[No info]")
+	       (toggle-usage
+		(lambda (strings) (interactive)
+		  (and (car-safe strings)
+		       (cl-callf (lambda (pos) (% (1+ pos) 2)) (car strings))))))
+      (buttonize entry toggle-usage gptel--token-usage-strings
+		 (concat "Token usage (C = cached tokens)\nLast request: "
+			 (or (cadr gptel--token-usage-strings) noinfo)
+			 "\nThis buffer:  "
+			 (or (caddr gptel--token-usage-strings) noinfo)))))
+
+  (defun gptel--header-line-fragment-tools ()
+    (when (and gptel-use-tools gptel-tools)
+      (propertize
+       (buttonize (pcase (length gptel-tools)
+		    (0 "[No tools]") (1 "[1 tool]")
+		    (len (format "[%d tools]" len)))
+		  (lambda (&rest _)
+		    (interactive)
+		    (run-at-time 0 nil
+				 (lambda () (call-interactively #'gptel-tools)))))
+       'mouse-face 'highlight
+       'help-echo "Select tools")))
+
+  (defun gptel--header-line-fragment-track-media ()
+    (when (gptel--model-capable-p 'media)
+      (let ((toggle-track-media
+	     (lambda (&rest _)
+	       (setq-local gptel-track-media (not gptel-track-media))
+	       (if gptel-track-media
+		   (progn
+		     (run-hooks 'gptel-refresh-buffer-hook)
+		     (message "Sending media from included links."))
+		 (without-restriction (gptel--annotate-link-clear))
+		 (message "Ignoring links.  Only link text will be sent."))
+	       (run-at-time 0 nil #'force-mode-line-update))))
+	(if gptel-track-media
+	    (propertize
+	     (buttonize "[Media: Send]" toggle-track-media)
+	     'mouse-face 'highlight
+	     'help-echo "Sending media from links/urls when supported.\nClick to toggle")
+	  (propertize
+	   (buttonize "[Media: No]" toggle-track-media)
+	   'mouse-face 'highlight
+	   'help-echo "Ignoring media from links/urls.\nClick to toggle")))))
+
+  (defun gptel--header-line-fragment-context ()
+    (and gptel-context
+	 (cl-loop
+	  for entry in gptel-context
+	  if (bufferp (or (car-safe entry) entry)) count it into bufs
+	  else count (stringp (or (car-safe entry) entry)) into files
+	  finally return
+	  (propertize
+	   (buttonize
+	    (concat "[" (and (> bufs 0) (format "%d buf" bufs))
+		    (and (> bufs 1) "s")
+		    (and (> bufs 0) (> files 0) ", ")
+		    (and (> files 0) (format "%d file" files))
+		    (and (> files 1) "s") "]")
+	    (lambda (&rest _)
+	      (require 'gptel-context)
+	      (gptel-context--buffer-setup)))
+	   'mouse-face 'highlight
+	   'help-echo "Active gptel context"))))
+
+  (defun gptel--header-line-fragment-system ()
+    (let ((system
+	   (propertize
+	    (buttonize
+	     (format "[Prompt: %s]"
+		     (or (car-safe (rassoc gptel-system-prompt gptel-directives))
+			 (gptel--describe-directive gptel-system-prompt 15)))
+	     (lambda (&rest _) (gptel-system-prompt)))
+	    'mouse-face 'highlight
+	    'help-echo "System message for session")))
+      system))
+
+  (defun gptel--header-line-fragment-model ()
+    (propertize
+     (buttonize (concat "[" (gptel--model-name gptel-model) "]")
+		(lambda (&rest _) (gptel-menu)))
+     'mouse-face 'highlight
+     'help-echo "Model in use"))
+
+  (defun gptel--header-line-fragment-preset ()
+    (let ((preset
+	   (or (and (boundp 'gptel--preset)
+		    gptel--preset
+		    (if (symbolp gptel--preset)
+			(symbol-name gptel--preset)
+		      (format "%s" gptel--preset)))
+	       "[No preset]")))
+      (propertize
+       (buttonize (format "[Preset: %s]" preset)
+		  (lambda (&rest _)
+		    (interactive)
+		    (call-interactively #'gptel-preset)))
+       'mouse-face 'highlight
+       'help-echo "Current preset. Click to change")))
+
+  (defun gptel--header-line-info ()
+    "Build the gptel header-line info from `gptel-header-line-fragments'."
+    (let* ((parts
+	    (delq nil
+		  (mapcar
+		   (lambda (frag)
+		     (pcase frag
+		       ('usage (gptel--header-line-fragment-usage))
+		       ('tools (gptel--header-line-fragment-tools))
+		       ('track-media (gptel--header-line-fragment-track-media))
+		       ('context (gptel--header-line-fragment-context))
+		       ('system (gptel--header-line-fragment-system))
+		       ('model (gptel--header-line-fragment-model))
+		       ('preset (gptel--header-line-fragment-preset))
+		       (_ nil)))
+		   gptel-header-line-fragments)))
+	   (rhs (mapconcat #'identity parts " ")))
+      (concat
+       (propertize
+	" " 'display
+	(if (and (fboundp 'string-pixel-width)
+		 (display-graphic-p))
+	    `(space :align-to (- right (,(string-pixel-width rhs))))
+	  `(space :align-to (- right ,(+ 5 (string-width rhs))))))
+       rhs)))
+
+  (defun gptel-use-header-line ()
+    "Set up the header-line for a gptel buffer."
+    (setq header-line-format
+	  (list '(:eval (concat (propertize " " 'display '(space :align-to 0))
+				(format "%s" (gptel-backend-name gptel-backend))))
+		(propertize " Ready" 'face 'success)
+		'(:eval (gptel--header-line-info)))))
+
+  (setq gptel-header-line-fragments '(usage context track-media))
   (setq gptel-model 'gpt-5.4-mini)
   (setq gptel-include-tool-results nil)
   (setq gptel-highlight-methods '(face))
@@ -510,6 +704,7 @@ This makes sure the frame is made visible after dashboard is open.
 	'((display-buffer-same-window)))
   (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "* Prompt: \n")
   (setf (alist-get 'org-mode gptel-response-prefix-alist) "*Response:* \n")
+
 
   ;; correct hook usage
   ;; (add-hook 'gptel-post-response-functions #'gptel-end-of-response)
@@ -732,17 +927,29 @@ lichess package, mouse support is not working.
 	 (corfu-mode . corfu-echo-mode))
   :custom
   (corfu-auto t)                ; Enable automatic completion
+  (corfu-auto-delay 2)          ; so that its not poping up too much
   (corfu-cycle t)               ; Enable cycling through completions
   (corfu-echo-documentation t)  ; Show documentation on the completion
   (corfu-min-width 20)          ; Minimum width for completion popup
   (corfu-echo-delay '(0.5 . 0.2)) ; Delay intial and subsequent
+  ;; to make the popup minimal
+  (corfu-bar-width 0)
+  (corfu-border-width 0)
+  (corfu-left-margin-width 0)
+  (corfu-right-margin-width 0)
+  (corfu-max-width 200)
+  (corfu-scroll-margin 0)
+  (corfu-min-width 50)
   :bind
   (:map corfu-map
-	("TAB" . corfu-next)     ; TAB for next completion
-	("S-TAB" . corfu-previous) ; Shift-TAB for previous completion
 	("RET" . corfu-send)    ; RET for selection
 	("C-n" . corfu-next)      ; Move down the completions list
 	("C-p" . corfu-previous))) ; Move up the completions list
+
+
+(global-completion-preview-mode 1) ;; enables ghost text completion.
+;;TODO coompletion preview mode messes with input fucniton in the repl this is a bug make a report on it.
+(add-hook 'comint-mode-hook (lambda () (completion-preview-mode -1)))
 #+end_src
 
 ** Cursors
@@ -809,15 +1016,18 @@ lichess package, mouse support is not working.
 	 ("C-c n b" . denote-backlinks)
 	 ("C-c n d" . denote-dired)
 	 ("C-c n g" . denote-grep))
-  :config (setq denote-directory (expand-file-name "~/notes/"))
+  :config
+(setq denote-directory
+      (list (expand-file-name "~/notes/Unlinked Notes/")
+	    (expand-file-name "~/notes/")))
   (denote-rename-buffer-mode 1)
   (setq denote-dired-directories-include-subdirectories t)
   (setq denote-org-front-matter
 	"#+title: %s
-#+date: %s
-#+filetags: %s
-#+identifier: %s
-#+signature: %s
+,#+date: %s
+,#+filetags: %s
+,#+identifier: %s
+,#+signature: %s
 ")
   (setq denote-templates
       '((note . "#+startup: latexpreview\n\n\n\n\n\n* Further readings\n-\n* Connections\n-")))
@@ -870,9 +1080,7 @@ lichess package, mouse support is not working.
 (use-package diff
   :ensure nil
   :config
-  ;; You cannot expect the syntax highlighting of themes to look
-  ;; equally readabable against what typically are red and green
-  ;; backgrounds.  This should be opt-in by default, not opt-out.
+  ;; makes the background subtle red and green. i like it. its the default. if you want theme specific highlighting set it to nil.
   (setq diff-font-lock-syntax nil))
 
 ;;;; Ediff
@@ -977,40 +1185,46 @@ Eglot (built-in client for the language server protocol)
   ;; (elfeed-mode . (lambda () (display-line-numbers-mode 1))) ;; Turn line numbers back on in other modes.
 
   :init
-  (which-key-add-key-based-replacements "C-c r" "RSS")
   (setq elfeed-enclosure-default-dir "~/Downloads/"
 	elfeed-show-entry-switch 'switch-to-buffer
 	elfeed-search-filter "@2-weeks-ago +unread"
 	elfeed-search-title-max-width 70
 	elfeed-search-title-min-width 30
 	elfeed-search-trailing-width 25
-	elfeed-show-unique-buffers nil)
+	elfeed-show-unique-buffers nil
+	elfeed-search-date-format '("%d-%m" 6 :left))
 
   :config
   (which-key-add-key-based-replacements "C-c r" "RSS")
   (setq elfeed-feeds
-	'(("https://frontline.thehindu.com/feeder/default.rss" Hindu)
-	  ("https://cfo.economictimes.indiatimes.com/rss/tax-legal-accounting" ET TaxLegAcc)
-	  ("https://cfo.economictimes.indiatimes.com/rss/corporate-finance" ET CF)
-	  ("https://cfo.economictimes.indiatimes.com/rss/esg" ET ESG)
-	  ("https://cfo.economictimes.indiatimes.com/rss/strategy-operations" ET StratOper)
-	  ("https://cfo.economictimes.indiatimes.com/rss/policy" ET policy)
-	  ("https://cfo.economictimes.indiatimes.com/rss/leadership" ET leadership)
-	  ("https://cfo.economictimes.indiatimes.com/rss/governance-risk-compliance" ET Gov-riskcomp)
-	  ("https://cfo.economictimes.indiatimes.com/rss/economy" ET economy)
-	  ("https://rbi.org.in/pressreleases_rss.xml" RBI PR)
-	  ("https://rbi.org.in/notifications_rss.xml" RBI notif)))
+	'(("https://b2b.economictimes.indiatimes.com/rss/recentstories"
+	   :title " ET Recent" news)
+	  ("https://www.thehindu.com/news/international/feeder/default.rss"
+	   :title " Hindu World" news)
+	  ("https://www.thehindu.com/business/Economy/feeder/default.rss"
+	   :title " Hindu Economy" news)
+	  ("https://www.thehindu.com/business/markets/feeder/default.rss"
+	   :title " Hindu Markets" news)
+	  ("https://cfo.economictimes.indiatimes.com/rss/topstories"
+	   :title " ET CFO top" news)
+	  ("https://cfo.economictimes.indiatimes.com/rss/economy"
+	   :title " ET economy" news)
+	  ("https://rbi.org.in/pressreleases_rss.xml"
+	   :title " RBI PR" news)
+	  ("https://rbi.org.in/notifications_rss.xml"
+	   :title " RBI notif" news)
+	   ))
 
-  ;; advice to remove the feed column
-  (advice-add 'elfeed-search-print-entry--default :override
-	    (lambda (entry)
-	      (pcase-let ((`(,date . ,date-width) (elfeed-search--column-date entry))
-			  (`(,title . ,title-width) (elfeed-search--column-title entry))
-			  (tags (elfeed-search--column-tags entry)))
-		(insert date
-			(propertize " " 'display `(space :align-to ,(+ 2 date-width)))
-			title
-			(or tags "")))))
+  ;; ;; advice to remove the feed column
+  ;; (advice-add 'elfeed-search-print-entry--default :override
+  ;;	    (lambda (entry)
+  ;;	      (pcase-let ((`(,date . ,date-width) (elfeed-search--column-date entry))
+  ;;			  (`(,title . ,title-width) (elfeed-search--column-title entry))
+  ;;			  (tags (elfeed-search--column-tags entry)))
+  ;;		(insert date
+  ;;			(propertize " " 'display `(space :align-to ,(+ 2 date-width)))
+  ;;			title
+  ;;			(or tags "")))))
   )
 
 ;; (use-package elfeed-tube
@@ -1042,27 +1256,27 @@ Eglot (built-in client for the language server protocol)
 ** Flymake
 some errors are showing maybe .elc is corrupted.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package flymake
-  :ensure nil
-  :bind
-  ( :map ctl-x-x-map
-    ("m" . flymake-mode) ; C-x x m
-    :map flymake-mode-map
-    ("C-c ! s" . flymake-start)
-    ("C-c ! d" . flymake-show-buffer-diagnostics) ; Emacs28
-    ("C-c ! D" . flymake-show-project-diagnostics) ; Emacs28
-    ("C-c ! n" . flymake-goto-next-error)
-    ("C-c ! p" . flymake-goto-prev-error))
-  :config
-  (setq flymake-fringe-indicator-position 'right-fringe) ;;was left-fringe changed due to margin shifting
-  (setq flymake-suppress-zero-counters t)
-  (setq flymake-no-changes-timeout nil)
-  (setq flymake-start-on-flymake-mode nil)
-  (setq flymake-start-on-save-buffer t)
-  (setq flymake-proc-compilation-prevents-syntax-check t)
-  (setq flymake-wrap-around nil)
-  (setq flymake-mode-line-format
-	'("" flymake-mode-line-exception flymake-mode-line-counters)))
+;; (use-package flymake
+;;   :ensure nil
+;;   :bind
+;;   ( :map ctl-x-x-map
+;;     ("m" . flymake-mode) ; C-x x m
+;;     :map flymake-mode-map
+;;     ("C-c ! s" . flymake-start)
+;;     ("C-c ! d" . flymake-show-buffer-diagnostics) ; Emacs28
+;;     ("C-c ! D" . flymake-show-project-diagnostics) ; Emacs28
+;;     ("C-c ! n" . flymake-goto-next-error)
+;;     ("C-c ! p" . flymake-goto-prev-error))
+;;   :config
+;;   (setq flymake-fringe-indicator-position 'right-fringe) ;;was left-fringe changed due to margin shifting
+;;   (setq flymake-suppress-zero-counters t)
+;;   (setq flymake-no-changes-timeout nil)
+;;   (setq flymake-start-on-flymake-mode nil)
+;;   (setq flymake-start-on-save-buffer t)
+;;   (setq flymake-proc-compilation-prevents-syntax-check t)
+;;   (setq flymake-wrap-around nil)
+;;   (setq flymake-mode-line-format
+;;	'("" flymake-mode-line-exception flymake-mode-line-counters)))
 #+end_src
 
 ** Flyspell
@@ -1116,7 +1330,9 @@ downloaded hunspell
 		    :weight 'medium)
 
 ;; fallback if some unicode symbols are missing.
-(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols 2") nil 'prepend)
+(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols") nil 'append)
+(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols 2") nil 'append)
+(set-fontset-font t 'unicode (font-spec :family "Noto Color Emoji") nil 'append)
 (set-fontset-font t 'unicode (font-spec :family "Unifont") nil 'append)
 
 ;; Makes commented text and keywords italics.
@@ -1139,29 +1355,104 @@ downloaded hunspell
 
 ** Git bash utls
 This adds various utilitites to emacs without changing my system path.
+setenv makes it so that sub processes can also see the path.
 
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(let ((git-bash-bin "C:/Program Files/Git/bin/")
-      (imagemagick-bin "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI")
-      (xournal-bin "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"))
+(defun my/add-to-path (dir)
+  "Add DIR to `exec-path' and PATH if not already present."
+  (unless (member dir exec-path)
+    (add-to-list 'exec-path dir))
+  (unless (member dir (split-string (getenv "PATH") path-separator t))
+    (setenv "PATH" (concat dir path-separator (getenv "PATH")))))
 
-  ;; Add to exec-path only if not already present
-  (unless (member git-bash-bin exec-path)
-    (add-to-list 'exec-path git-bash-bin))
+(dolist (dir '("C:/Program Files/Git/usr/bin"
+	       "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
+	       "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"))
+  (my/add-to-path dir))
+#+end_src
 
-  (unless (member imagemagick-bin exec-path)
-    (add-to-list 'exec-path imagemagick-bin))
+** Highlight goodies
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; from karthink https://karthinks.com/software/even-more-batteries-included-with-emacs/
+;; (require 'hilit-chg)
+;; (defun highlight-changes-mode-turn-off ()
+;;   (and highlight-changes-mode (highlight-changes-mode -1)))
 
-  (unless (member xournal-bin exec-path)
-    (add-to-list 'exec-path xournal-bin)))
+;; (defun highlight-changes-mode-turn-on ()
+;;   (and highlight-changes-mode (highlight-changes-mode 1)))
+
+;; (defun highlight-changes-auto ()
+;;   (when (buffer-file-name)
+;;     (highlight-changes-mode-turn-on)
+;;     (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
+;;     (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t)))
+;; ;; if want it invabled in certain modes
+;; ;; (add-hook 'text-mode-hook #'highlight-changes-auto)
+
+;; (define-minor-mode highlight-until-save-mode
+;;   "Highlight all changes until the buffer is saved."
+;;   :lighter "H"
+;;   (cond
+;;    ((not (buffer-file-name))
+;;     (user-error "Highlight-until-save-mode is only meant for use in file-visiting buffers"))
+;;    (highlight-until-save-mode
+;;     (highlight-changes-mode 1)
+;;     (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
+;;     (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t))
+;;    (t (highlight-changes-mode -1)
+;;       (remove-hook 'after-save-hook #'highlight-changes-mode-turn-on t)
+;;       (remove-hook 'before-save-hook #'highlight-changes-mode-turn-off t))))
+
+(use-package hilit-chg
+  :ensure nil
+  :commands (highlight-until-save-mode)
+  :config
+  (defun highlight-changes-mode-turn-off ()
+    (when highlight-changes-mode
+      (highlight-changes-mode -1)))
+
+  (defun highlight-changes-mode-turn-on ()
+    (when highlight-changes-mode
+      (highlight-changes-mode 1)))
+
+  (defun highlight-changes-auto ()
+    (when (buffer-file-name)
+      (highlight-changes-mode-turn-on)
+      (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
+      (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t)))
+
+  (define-minor-mode highlight-until-save-mode
+    "Highlight all changes until the buffer is saved."
+    :lighter " H"
+    (if highlight-until-save-mode
+	(progn
+	  (highlight-changes-mode 1)
+	  (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
+	  (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t))
+      (highlight-changes-mode -1)
+      (remove-hook 'after-save-hook #'highlight-changes-mode-turn-on t)
+      (remove-hook 'before-save-hook #'highlight-changes-mode-turn-off t))))
+
+;; higlights the current line
+;; (use-package hl-line
+;;   :ensure nil
+;;   :config
+;;   (global-hl-line-mode 1) ;; not useful, and kind of distracting.
+;;   (setq hl-line-sticky-flag nil) ;; make it only visible in current window
+;;   )
+
 #+end_src
 
 ** imenu
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package imenu
   :ensure nil
+  :bind
+  ("C-c i" . imenu)
   :config
-  (setq imenu-auto-rescan t)) ;; this should solve the issue of it being consistent.
+  (setq imenu-flatten 'prefix) ;; adds annotations and makes the list flat.
+  (setq imenu-auto-rescan t) ;; this should solve the issue of it being consistent.
+  )
 #+end_src
 
 ** isearch
@@ -1217,14 +1508,12 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 (use-package org
   :ensure nil
   :mode ("\\.org\\'" . org-mode)
+  :init
+  (setq org-fold-core-style 'overlays) ;; with text its weird and buggy.
   :custom-face
-  ;; (org-level-1 ((t (:inherit outline-1 :height 1.15))))
-  ;; (org-level-2 ((t (:inherit outline-2 :height 1.125))))
-  ;; (org-level-3 ((t (:inherit outline-3 :height 1.1))))
-  ;; (org-level-4 ((t (:inherit outline-4 :height 1.075))))
-  ;; (org-level-5 ((t (:inherit outline-5 :height 1.05))))
-  ;; (org-level-6 ((t (:inherit outline-5 :height 1.025))))
+  ;; (org-level-1 ((t (:inherit outline-1 :height 1.2))))
   :config
+  (setq org-modules '(ol-doi ol-bibtex ol-docview ol-info))
   (setopt org-export-backends '(ascii html icalendar latex odt md))
 
   (setq
@@ -1250,12 +1539,18 @@ TODO: need to make sure that all the org settings are in use-package org block. 
    org-adapt-indentation nil
    org-list-indent-offset 0)
 
+  ;; org fold
+  (setq org-startup-folded 'nofold)
+
+  ;; org imenu setup
+  (setq org-imenu-depth 5) ;; layers of headings in imenu
+  ;; note: in org for imenu to support it the first line has to be a first level heading and with exactly one space after the heading * heading not *  heading.
+
   ;; Pomodoro sound
   (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
 
   ;; Ellipsis styling
   (setq org-ellipsis " ...")
-  (set-face-attribute 'org-ellipsis nil :inherit 'default :box nil)
 
   ;; list demontion leads to change in it.
   (setq org-list-demote-modify-bullet
@@ -1288,13 +1583,51 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     (advice-add 'org-unfontify-region :after 'my/org-remove-cursor-text-properties)
     (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
 
+  ;; font lock for org-tables, make it more readable
+
+  (defun my-org-table-fontify-outer (limit)
+    (while (re-search-forward "^\\s-*|.*|\\s-*$" limit t)
+      (let ((beg (match-beginning 0))
+	    (end (match-end 0)))
+	(save-excursion
+	  (goto-char beg)
+	  (search-forward "|" end t)
+	  (put-text-property (1- (point)) (point)
+			     'face 'default))
+	(save-excursion
+	  (goto-char end)
+	  (search-backward "|" beg t)
+	  (put-text-property (point) (1+ (point))
+			     'face 'default)))
+      t))
+
+  (defun my-org-table-fontify-separator (limit)
+    (while (re-search-forward "^\\s-*|[-+]+|\\s-*$" limit t)
+      (put-text-property (match-beginning 0) (match-end 0)
+			 'face 'default)
+      t))
+
+  (with-eval-after-load 'org
+    (font-lock-add-keywords
+     'org-mode
+     '((my-org-table-fontify-separator)
+       (my-org-table-fontify-outer))
+     'append))
+
   ;; Hooks
   (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
   (add-hook 'org-mode-hook 'variable-pitch-mode)
-  (add-hook 'org-mode-hook (lambda () (require 'org-tempo)))
   (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
 
   ;; Org-agenda setup
+  (global-set-key (kbd "C-c a") nil)
+  (global-set-key (kbd "C-c a a") 'org-agenda-list)
+  (global-set-key (kbd "C-c a t") 'org-todo-list)
+  (global-set-key (kbd "C-c a o") 'org-agenda)
+
+  (which-key-add-key-based-replacements "C-c a" "org-agenda")
+  (which-key-add-key-based-replacements "C-c a o" "org-agenda-menu")
+
   (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
   ;; Org-latex formatting
@@ -1312,6 +1645,25 @@ TODO: need to make sure that all the org settings are in use-package org block. 
      (emacs-lisp . t)))
 
   (setq org-confirm-babel-evaluate nil)
+
+  ;;; org-hide face
+
+  ;; for modus-themes or ef-themes
+  ;; (defun my/org-hide-face ()
+  ;;   (set-face-attribute 'org-hide nil
+  ;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
+  ;;		      :weight 'light))
+
+  ;; (add-hook 'org-mode-hook #'my/org-hide-face)
+
+  ;; for doric-themes
+  (defun my/org-hide-face ()
+    (set-face-attribute 'org-hide nil
+			:foreground (face-attribute 'internal-border :foreground nil t)
+			:weight 'light))
+
+  (add-hook 'org-mode-hook #'my/org-hide-face)
+  (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
   )
 
 ;;; org-hide face
@@ -1324,22 +1676,29 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
 ;; (add-hook 'org-mode-hook #'my/org-hide-face)
 
-;; for doric-themes
-(defun my/org-hide-face ()
-  (set-face-attribute 'org-hide nil
-		      :foreground (face-attribute 'internal-border :foreground nil t)
-		      :weight 'light))
+;; ;; for doric-themes
+;; (defun my/org-hide-face ()
+;;   (set-face-attribute 'org-hide nil
+;;		      :foreground (face-attribute 'internal-border :foreground nil t)
+;;		      :weight 'light))
 
-(add-hook 'org-mode-hook #'my/org-hide-face)
+;; (add-hook 'org-mode-hook #'my/org-hide-face)
+;; (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
 
 ;; incremental loading
 (defvar my/post-startup-packages
   '(org
     org-macs
     org-compat
+    oc-basic
+    ol-doi
+    ol-bibtex
+    ol-docview
+    ol-info
     org-element
     org-src
     org-fold
+    denote
     org-agenda
     org-capture
     org-tempo)
@@ -1472,58 +1831,59 @@ This is a small code to automatically trim handwritten notes, when adding them.
 *** org-source-code programming support
 This is needed currently,
 https://github.com/joaotavora/eglot/issues/523 check if this issue is resolved then you can remove this code.
+
 **** TODO we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(defvar pratik-org-src-temp-files nil
-  "List of temp files created for org-src + eglot integration.")
+;; (defvar pratik-org-src-temp-files nil
+;;   "List of temp files created for org-src + eglot integration.")
 
-(defun pratik-org-src--edit-advice (orig-fun &rest args)
-  "Advice around `org-edit-special' to enable LSP in source block buffers."
-  (let* ((info (org-babel-get-src-block-info)) ; Only valid in Org buffer
-	 (lang (car info))
-	 (params (nth 2 info))
-	 (is-remote (file-remote-p default-directory))
-	 (tangle (cdr (assoc :tangle params)))
-	 (dir (or (cdr (assoc :dir params)) default-directory))
-	 (ext (pcase lang
-		("python" "py")
-		("emacs-lisp" "el")
-		("latex" "tex")
-		(_ "tmp")))
-	 (file (if (and tangle (not (string= tangle "no")))
-		   (expand-file-name tangle dir)
-		 (make-temp-file "org-src-eglot" nil (concat "." ext)))))
-    ;; Tangle first before switching modes
-    (org-babel-tangle '(4))
+;; (defun pratik-org-src--edit-advice (orig-fun &rest args)
+;;   "Advice around `org-edit-special' to enable LSP in source block buffers."
+;;   (let* ((info (org-babel-get-src-block-info)) ; Only valid in Org buffer
+;;	 (lang (car info))
+;;	 (params (nth 2 info))
+;;	 (is-remote (file-remote-p default-directory))
+;;	 (tangle (cdr (assoc :tangle params)))
+;;	 (dir (or (cdr (assoc :dir params)) default-directory))
+;;	 (ext (pcase lang
+;;		("python" "py")
+;;		("emacs-lisp" "el")
+;;		("latex" "tex")
+;;		(_ "tmp")))
+;;	 (file (if (and tangle (not (string= tangle "no")))
+;;		   (expand-file-name tangle dir)
+;;		 (make-temp-file "org-src-eglot" nil (concat "." ext)))))
+;;     ;; Tangle first before switching modes
+;;     (org-babel-tangle '(4))
 
-    ;; Now call the original edit function (switches to edit buffer)
-    (apply orig-fun args)
+;;     ;; Now call the original edit function (switches to edit buffer)
+;;     (apply orig-fun args)
 
-    ;; Now we are in the special edit buffer (e.g., python-mode)
-    ;; Set buffer-local variables for LSP/flycheck to work
-    (setq-local buffer-file-name file)
-    (setq-local default-directory dir)
+;;     ;; Now we are in the special edit buffer (e.g., python-mode)
+;;     ;; Set buffer-local variables for LSP/flycheck to work
+;;     (setq-local buffer-file-name file)
+;;     (setq-local default-directory dir)
 
-    ;; Track temp files for later cleanup
-    (unless (and tangle (not (string= tangle "no")))
-      (push file pratik-org-src-temp-files)
-      (add-hook 'kill-buffer-hook
-		(lambda ()
-		  (when (and buffer-file-name
-			     (member buffer-file-name pratik-org-src-temp-files))
-		    (delete-file buffer-file-name)
-		    (setq pratik-org-src-temp-files
-			  (remove buffer-file-name pratik-org-src-temp-files))))
-		nil t))
+;;     ;; Track temp files for later cleanup
+;;     (unless (and tangle (not (string= tangle "no")))
+;;       (push file pratik-org-src-temp-files)
+;;       (add-hook 'kill-buffer-hook
+;;		(lambda ()
+;;		  (when (and buffer-file-name
+;;			     (member buffer-file-name pratik-org-src-temp-files))
+;;		    (delete-file buffer-file-name)
+;;		    (setq pratik-org-src-temp-files
+;;			  (remove buffer-file-name pratik-org-src-temp-files))))
+;;		nil t))
 
-    ;; Start LSP or syntax checker
-    (pcase lang
-      ("python" (eglot-ensure))
-      ("emacs-lisp" (flymake-mode 1))
-      (_ nil))))
+;;     ;; Start LSP or syntax checker
+;;     (pcase lang
+;;       ("python" (eglot-ensure))
+;;       ("emacs-lisp" (flymake-mode 1))
+;;       (_ nil))))
 
-;; Use advice instead of a hook
-(advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
+;; ;; Use advice instead of a hook
+;; (advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
 #+end_src
 
 *** Latex
@@ -1554,6 +1914,7 @@ only useful if you are editing tex files.
 (use-package python
   :ensure nil
   :config
+  (setq python-indent-guess-indent-offset nil)
   (setq python-shell-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe" )
   (setq python-interpreter "C:/Users/PRATIK/AppData/Local/Programs/Python/Python314/python.exe"))
 #+end_src
@@ -1623,36 +1984,94 @@ for html viewing defaults, used in elfeed aswell.
 (use-package doric-themes
   :ensure t
   :vc (:url "https://github.com/protesilaos/doric-themes"
-	    :rev :newest)
+       :rev :newest)
   :demand t
   :config
   (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
   (setq doric-themes-to-rotate doric-themes-collection)
 
-  (doric-themes-select 'doric-marble))
+  (defun my/doric-theme-by-time ()
+    (let ((hour (string-to-number (format-time-string "%H"))))
+      (if (or (>= hour 17) (< hour 5))
+	  (doric-themes-select 'doric-dark)
+	(doric-themes-select 'doric-marble))))
 
-;; dark theme every day at 5pm.
-(run-at-time "17:00" 86400 #'doric-themes-toggle)
+  ;; Set correct theme immediately at startup
+  (my/doric-theme-by-time)
 
-;; higlights the current line
-;; (use-package hl-line
-;;   :ensure nil
-;;   :config
-;;   (global-hl-line-mode 1) ;; not useful, and kind of distracting.
-;;   (setq hl-line-sticky-flag nil) ;; make it only visible in current window
-;;   )
+  ;; Then schedule future changes
+  (run-at-time "17:00" 86400
+	       (lambda ()
+		 (doric-themes-select 'doric-dark)))
 
+  (run-at-time "05:00" 86400
+	       (lambda ()
+		 (doric-themes-select 'doric-marble)))
+  )
 
+  ;; make the headings ligher depends on new compat version
+  ;; (require 'compat)
+  (defun my-adjust-org-heading-colors ()
+  "Blend org headings toward the current theme background."
+  (let* ((bg-hex (face-background 'default nil t))
+	 (fg-hex (face-foreground 'org-level-1 nil t)))
+    (when (and bg-hex fg-hex)
+      (let* ((bg-rgb (color-name-to-rgb bg-hex))
+	     (fg-rgb (color-name-to-rgb fg-hex))
+	     (levels '((1 . 1)
+		       (2 . 0.85)
+		       (3 . 0.7)))
+	     c3-hex)
+	(dolist (item levels)
+	  (let* ((n (car item))
+		 (alpha (cdr item))
+		 (rgb (color-blend fg-rgb bg-rgb alpha))
+		 (hex (apply #'color-rgb-to-hex rgb)))
+	    (when (= n 3)
+	      (setq c3-hex hex))
+	    (set-face-foreground (intern (format "org-level-%d" n)) hex)))
+	(when c3-hex
+	  (dolist (n '(4 5 6 7 8))
+	    (set-face-foreground (intern (format "org-level-%d" n)) c3-hex)))))))
+
+  (add-hook 'doric-themes-after-load-theme-hook #'my-adjust-org-heading-colors)
+(defun run-adjust-colors-once ()
+  "Run `my-adjust-org-heading-colors' once per session."
+  (my-adjust-org-heading-colors)
+  (remove-hook 'org-mode-hook #'run-adjust-colors-once))
+
+(add-hook 'org-mode-hook #'run-adjust-colors-once)
+
+;; makes the firnge same as background
 (defun my-set-face-attributes ()
   (let ((bg (face-background 'default nil t)))
     (set-face-attribute 'fringe nil :background bg :foreground bg)))
 
-(add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
+(add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
 (add-hook 'after-init-hook #'my-set-face-attributes)
 
 ;; Set up the initial frame only if not in daemon mode
 (when (not (daemonp))
   (my-set-face-attributes))
+(when (not (daemonp))
+  (my-adjust-org-heading-colors))
+#+end_src
+
+** VC
+#+begin_src emacs-lisp "~/.emacs.d/init.el"
+(use-package vc
+  :ensure nil
+  :config
+  ;; taken from prot's
+  (defun prot/vc-diff-dwim ()
+    "Show diff of buffer against file or against VC history."
+    (interactive)
+    (if-let* ((buffer (current-buffer))
+	      (_ (buffer-modified-p buffer)))
+	(diff-buffer-with-file buffer)
+      (call-interactively #'vc-diff)))
+  (global-set-key (kbd "C-x v =") 'prot/vc-diff-dwin)
+  )
 #+end_src
 
 ** Visual Upgrades
@@ -1677,6 +2096,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (setq vertico-cycle t)
   :config
   (vertico-unobtrusive-mode)
+  (setq vertico-flat-annotate t) ;; show annotations i.e shortcuts.
   ;;minibuffer setting to stop showing default's as unobtrusive mode already shows it
   (setq minibuffer-default-prompt-format "")
   (setq scroll-conservatively 1000) ;; makes it scroll slowly
@@ -1737,10 +2157,13 @@ Tells you the key bindings
 	which-key-min-display-lines 6
 	which-key-side-window-max-height 0.25
 	which-key-idle-delay 2
+	which-key-idle-secondary-delay 0
 	which-key-max-description-length 30
 	which-key-min-column-description-width 30
 	which-key-allow-imprecise-window-fit t
-	which-key-separator " > "))
+	which-key-separator " > "
+	which-key-show-prefix nil) ;; don't show help stuff.
+  )
 
 ;; which-key-posframe (load only when which-key is active)
 (use-package which-key-posframe
@@ -1773,27 +2196,27 @@ This already works out of the box.
 
 ** YaSnippet
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package yasnippet
-  :ensure t
-  :after org
-  :init
-  (yas-global-mode 1)
-  :config
-  (setq yas-triggers-in-field t)
+;; (use-package yasnippet
+;;   :ensure t
+;;   :after org
+;;   :init
+;;   (yas-global-mode 1)
+;;   :config
+;;   (setq yas-triggers-in-field t)
 
-  (defun my/org-enable-latex-snippets ()
-    (yas-activate-extra-mode 'latex-mode))
+;;   (defun my/org-enable-latex-snippets ()
+;;     (yas-activate-extra-mode 'latex-mode))
 
-  (add-hook 'org-mode-hook #'my/org-enable-latex-snippets))
-  ;; force latex snippets in org
-  (add-hook 'org-mode-hook
-	    (lambda ()
-	      (yas-minor-mode 1)
-	      (yas-activate-extra-mode 'latex-mode)))
+;;   (add-hook 'org-mode-hook #'my/org-enable-latex-snippets))
+;;   ;; force latex snippets in org
+;;   (add-hook 'org-mode-hook
+;;	    (lambda ()
+;;	      (yas-minor-mode 1)
+;;	      (yas-activate-extra-mode 'latex-mode)))
 
-(use-package yasnippet-snippets
-  :ensure t
-  :after yasnippet)
+;; (use-package yasnippet-snippets
+;;   :ensure t
+;;   :after yasnippet)
 #+end_src
 
 ** Zooming In/Out
@@ -1805,7 +2228,7 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 (global-set-key (kbd "<C-wheel-down>") 'text-scale-decrease)
 #+end_src
 
-** helper functions
+** helper functions and other trivia
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (defun handy ()
   (interactive)
@@ -1815,3 +2238,10 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
   (interactive)
   (call-process "taskkill" nil nil nil "/IM" "handy.exe" "/F"))
 #+end_src
+
+pop to mark command is linked to "C-u C-spc". it enables us to cycle through our marks.
+in buffers with q as bury the buffer "C-u q" kill the buffer.
+
+# Local Variables:
+# eval: (highlight-until-save-mode 1)
+# End:
