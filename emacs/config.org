@@ -23,7 +23,6 @@
 
 ** Performance boost
 #+begin_src emacs-lisp :tangle "~/.emacs.d/early-init.el"
-
 (blink-cursor-mode -1) ;; disable blinking cursor
 (global-visual-line-mode t)  ;; Enable line wrap
 (tooltip-mode -1) ;; remove the popups on hover, on windows they can get stuck.
@@ -318,7 +317,7 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
       user-mail-address "pratikmishra4979@gmail.com")
 (setq user-fixed-pitch-font "FantasqueSansM Nerd Font")
 (setq user-variable-pitch-font "FantasqueSansM Nerd Font Propo")
-(setq user-font-size 14)
+(setq user-font-size 15)
 #+end_src
 
 *** Setting the default-directory
@@ -464,7 +463,7 @@ This makes sure the frame is made visible after dashboard is open.
 
 ;; make emacs input automatic line breaks.
 (setq-default fill-column 80)
-(add-hook 'text-mode-hook #'auto-fill-mode)
+;; (add-hook 'text-mode-hook #'auto-fill-mode)
 
 ;; lock *scratch* buffer so that its not killed accidentaly
 (with-current-buffer "*scratch*"
@@ -899,32 +898,14 @@ The order in this list controls the display order."
 ;;                   (my/gptel-windows-on-frame))))
 #+end_src
 
-** chess
-lichess package, mouse support is not working.
-#+begin_src emacs-lisp
-(use-package lichess
-  :ensure t
-  :commands (lichess lichess-tv lichess-game-watch)
-  :vc (:url "https://github.com/tmythicator/lichess.el"
-	    :rev :newest)
-  :custom
-  (lichess-token
-   (auth-source-pick-first-password
-    :host "lichess.org"
-    :user "apikey"))
-  (lichess-core-chess-font "DejaVu Sans Mono")
-  (lichess-board-gui-light-square-color "#f0d9b5")
-  (lichess-board-gui-dark-square-color "#b58863")
-  (lichess-ai-default-level 3))
-#+end_src
-
 ** Corfu
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
   :ensure t
-  :hook ((python-ts-mode . corfu-mode)
-	 (emacs-lisp-mode . corfu-mode)
-	 (corfu-mode . corfu-echo-mode))
+  :hook (corfu-mode . corfu-echo-mode)
+  ;; ((python-ts-mode . corfu-mode)
+  ;;	 (emacs-lisp-mode . corfu-mode)
+  ;;	 (corfu-mode . corfu-echo-mode))
   :custom
   (corfu-auto t)                ; Enable automatic completion
   (corfu-auto-delay 2)          ; so that its not poping up too much
@@ -940,6 +921,7 @@ lichess package, mouse support is not working.
   (corfu-max-width 200)
   (corfu-scroll-margin 0)
   (corfu-min-width 50)
+  (global-corfu-mode 1) ;; needed by supertag
   :bind
   (:map corfu-map
 	("RET" . corfu-send)    ; RET for selection
@@ -1017,9 +999,7 @@ lichess package, mouse support is not working.
 	 ("C-c n d" . denote-dired)
 	 ("C-c n g" . denote-grep))
   :config
-(setq denote-directory
-      (list (expand-file-name "~/notes/Unlinked Notes/")
-	    (expand-file-name "~/notes/")))
+(setq denote-directory "~/notes/")
   (denote-rename-buffer-mode 1)
   (setq denote-dired-directories-include-subdirectories t)
   (setq denote-org-front-matter
@@ -1031,7 +1011,7 @@ lichess package, mouse support is not working.
 ")
   (setq denote-templates
       '((note . "#+startup: latexpreview\n\n\n\n\n\n* Further readings\n-\n* Connections\n-")))
-  (setq denote-prompts '(template title keywords))
+  (setq denote-prompts '(template subdirectory title keywords))
   )
 
 ;;; Denote-org extension
@@ -1050,7 +1030,36 @@ lichess package, mouse support is not working.
     denote-org-dblock-insert-links
     denote-org-dblock-insert-backlinks
     denote-org-dblock-insert-missing-links
-    denote-org-dblock-insert-files-as-headings))
+    denote-org-dblock-insert-files-as-headings)
+  :config
+  (setq org-id-link-to-org-use-id 'create-if-interactive-and-no-custom-id))
+
+;;; Denote-sequence
+(use-package denote-sequence
+  :ensure t
+  :bind
+  ( :map global-map
+    ;; Here we make "C-c n s" a prefix for all "[n]otes with [s]equence".
+    ;; This is just for demonstration purposes: use the key bindings
+    ;; that work for you.  Also check the commands:
+    ;;
+    ;; - `denote-sequence-new-parent'
+    ;; - `denote-sequence-new-sibling'
+    ;; - `denote-sequence-new-child'
+    ;; - `denote-sequence-new-child-of-current'
+    ;; - `denote-sequence-new-sibling-of-current'
+    ("C-c n s s" . denote-sequence)
+    ("C-c n s f" . denote-sequence-find)
+    ("C-c n s l" . denote-sequence-link)
+    ("C-c n s d" . denote-sequence-dired)
+    ("C-c n s r" . denote-sequence-reparent)
+    ("C-c n s c" . denote-sequence-convert))
+  :config
+  ;; The default sequence scheme is `numeric'.
+  (setq denote-sequence-scheme 'numeric))
+
+;; This makes the denote preselect not select the first suggestion. though check if there are some other way. try other variables.
+;;(setq vertico-preselect 'prompt)
 #+end_src
 
 ** Dired
@@ -1213,6 +1222,8 @@ Eglot (built-in client for the language server protocol)
 	   :title " RBI PR" news)
 	  ("https://rbi.org.in/notifications_rss.xml"
 	   :title " RBI notif" news)
+	  ("https://www.business-standard.com/rss/todays-paper.rss"
+	   :title " Business Standard" news)
 	   ))
 
   ;; ;; advice to remove the feed column
@@ -1350,7 +1361,7 @@ downloaded hunspell
       (format "%s-%d" user-fixed-pitch-font user-font-size))
 
 (add-to-list 'default-frame-alist `(font . ,user-frame-font))
-(setq-default line-spacing 0.05) ;;default value was 0.06, 0.1,
+(setq-default line-spacing 0.15) ;;default value was 0.06, 0.1,0.05
 #+end_src
 
 ** Git bash utls
@@ -1365,44 +1376,18 @@ setenv makes it so that sub processes can also see the path.
   (unless (member dir (split-string (getenv "PATH") path-separator t))
     (setenv "PATH" (concat dir path-separator (getenv "PATH")))))
 
-(dolist (dir '("C:/Program Files/Git/usr/bin"
+(dolist (dir '("C:/Users/PRATIK/scoop/apps/mpv/0.41.0"
+	       "C:/Users/PRATIK/scoop/shims"
+	       "C:/Program Files/Git/usr/bin"
 	       "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
-	       "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"))
+	       "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"
+	       ))
   (my/add-to-path dir))
 #+end_src
 
 ** Highlight goodies
+from karthink https://karthinks.com/software/even-more-batteries-included-with-emacs/
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; from karthink https://karthinks.com/software/even-more-batteries-included-with-emacs/
-;; (require 'hilit-chg)
-;; (defun highlight-changes-mode-turn-off ()
-;;   (and highlight-changes-mode (highlight-changes-mode -1)))
-
-;; (defun highlight-changes-mode-turn-on ()
-;;   (and highlight-changes-mode (highlight-changes-mode 1)))
-
-;; (defun highlight-changes-auto ()
-;;   (when (buffer-file-name)
-;;     (highlight-changes-mode-turn-on)
-;;     (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
-;;     (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t)))
-;; ;; if want it invabled in certain modes
-;; ;; (add-hook 'text-mode-hook #'highlight-changes-auto)
-
-;; (define-minor-mode highlight-until-save-mode
-;;   "Highlight all changes until the buffer is saved."
-;;   :lighter "H"
-;;   (cond
-;;    ((not (buffer-file-name))
-;;     (user-error "Highlight-until-save-mode is only meant for use in file-visiting buffers"))
-;;    (highlight-until-save-mode
-;;     (highlight-changes-mode 1)
-;;     (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
-;;     (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t))
-;;    (t (highlight-changes-mode -1)
-;;       (remove-hook 'after-save-hook #'highlight-changes-mode-turn-on t)
-;;       (remove-hook 'before-save-hook #'highlight-changes-mode-turn-off t))))
-
 (use-package hilit-chg
   :ensure nil
   :commands (highlight-until-save-mode)
@@ -1508,21 +1493,12 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 (use-package org
   :ensure nil
   :mode ("\\.org\\'" . org-mode)
-  :init
-  (setq org-fold-core-style 'overlays) ;; with text its weird and buggy.
-  :custom-face
-  ;; (org-level-1 ((t (:inherit outline-1 :height 1.2))))
   :config
   (setq org-modules '(ol-doi ol-bibtex ol-docview ol-info))
   (setopt org-export-backends '(ascii html icalendar latex odt md))
 
   (setq
-   ;; Start collapsed for speed
-   org-startup-folded nil
-
    ;; Edit settings
-   org-auto-align-tags nil
-   org-tags-column 0
    org-fold-catch-invisible-edits 'show-and-error
    org-special-ctrl-a/e t
    org-insert-heading-respect-content t
@@ -1530,14 +1506,9 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
    ;; Org styling
    org-hide-emphasis-markers t
-   org-pretty-entities nil
    org-use-sub-superscripts nil ;; avoid using sub-superscripts
-
-   ;; indentation behaviour
-   org-startup-indented nil
    org-hide-leading-stars t
-   org-adapt-indentation nil
-   org-list-indent-offset 0)
+   )
 
   ;; org fold
   (setq org-startup-folded 'nofold)
@@ -1551,10 +1522,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
   ;; Ellipsis styling
   (setq org-ellipsis " ...")
-
-  ;; list demontion leads to change in it.
-  (setq org-list-demote-modify-bullet
-	'(("+" . "-") ("-" . "+") ("*" . "+")))
 
   ;; pomodoro timer function
   (defun pomodoro ()
@@ -1664,26 +1631,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
   (add-hook 'org-mode-hook #'my/org-hide-face)
   (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
-  )
-
-;;; org-hide face
-
-;; for modus-themes or ef-themes
-;; (defun my/org-hide-face ()
-;;   (set-face-attribute 'org-hide nil
-;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
-;;		      :weight 'light))
-
-;; (add-hook 'org-mode-hook #'my/org-hide-face)
-
-;; ;; for doric-themes
-;; (defun my/org-hide-face ()
-;;   (set-face-attribute 'org-hide nil
-;;		      :foreground (face-attribute 'internal-border :foreground nil t)
-;;		      :weight 'light))
-
-;; (add-hook 'org-mode-hook #'my/org-hide-face)
-;; (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
+   )
 
 ;; incremental loading
 (defvar my/post-startup-packages
@@ -1701,7 +1649,8 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     denote
     org-agenda
     org-capture
-    org-tempo)
+    org-tempo
+    ready-player)
   "Packages to load incrementally after startup.")
 
 (defun my/load-packages-incrementally ()
@@ -1892,6 +1841,24 @@ only useful if you are editing tex files.
 ;; (use-package auctex :ensure t :demand t)
 ;; (use-package cdlatex :ensure t :demand t)
 #+end_src
+** org-node
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org-mem
+  :ensure t
+  :config
+  (org-mem-updater-mode))
+
+(use-package org-node
+  :ensure t
+  :init
+  ;; Optional key bindings
+  ;; Tip: Try changing these to just "M-o"!
+  (keymap-global-set "M-o n" org-node-global-prefix-map)
+  (with-eval-after-load 'org
+    (keymap-set org-mode-map "M-o n" org-node-org-prefix-map))
+  :config
+  (org-node-cache-mode))
+#+end_src
 
 ** Proced
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -1936,6 +1903,30 @@ only useful if you are editing tex files.
   :hook (python-ts-mode . pyvenv-mode))
 #+end_src
 
+** Ready Player
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package ready-player
+  :ensure t
+  :vc (:url "https://github.com/xenodium/ready-player"
+	    :rev :newest)
+  :config
+  (setq ready-player-ask-for-project-sustainability nil)
+  (setq ready-player-hide-modeline nil)
+  (setq ready-player-help-icon "? ")
+  (setq ready-player-next-icon ">")
+  (setq ready-player-play-icon "p")
+  (setq ready-player-stop-icon "s")
+  (setq ready-player-repeat-icon "󰑖 ")
+  (setq ready-player-search-icon "󰍉 ")
+  (setq ready-player-shuffle-icon "󰒟 ")
+  (setq ready-player-autoplay-icon "󰐎 ")
+  (setq ready-player-previous-icon "<")
+  (setq ready-player-open-externally-icon "󰌹 ")
+  (setq ready-player-open-my-media-collection-icon "󰈙 ")
+  (setq ready-player-my-media-collection-location "~/Music/Music")
+  (ready-player-mode 1))
+#+end_src
+
 ** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -1968,7 +1959,23 @@ for html viewing defaults, used in elfeed aswell.
 (use-package modus-themes
   :ensure nil
   :init
-  ;; (load-theme 'modus-operandi)
+  ;;   (defun my/theme-by-time ()
+  ;;   (let ((hour (string-to-number (format-time-string "%H"))))
+  ;;     (if (or (>= hour 17) (< hour 5))
+  ;;	  (load-theme 'modus-vivendi)
+  ;;	(load-theme 'modus-operandi))))
+
+  ;; ;; Set correct theme immediately at startup
+  ;; (my/theme-by-time)
+
+  ;; ;; Then schedule future changes
+  ;; (run-at-time "17:00" 86400
+  ;;	       (lambda ()
+  ;;		 (load-theme 'modus-vivendi)))
+
+  ;; (run-at-time "05:00" 86400
+  ;;	       (lambda ()
+  ;;		 (load-theme 'modus-operandi)))
   ;; (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
@@ -1984,7 +1991,7 @@ for html viewing defaults, used in elfeed aswell.
 (use-package doric-themes
   :ensure t
   :vc (:url "https://github.com/protesilaos/doric-themes"
-       :rev :newest)
+	    :rev :newest)
   :demand t
   :config
   (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
@@ -1993,7 +2000,7 @@ for html viewing defaults, used in elfeed aswell.
   (defun my/doric-theme-by-time ()
     (let ((hour (string-to-number (format-time-string "%H"))))
       (if (or (>= hour 17) (< hour 5))
-	  (doric-themes-select 'doric-dark)
+	  (doric-themes-select 'doric-obsidian)
 	(doric-themes-select 'doric-marble))))
 
   ;; Set correct theme immediately at startup
@@ -2002,45 +2009,45 @@ for html viewing defaults, used in elfeed aswell.
   ;; Then schedule future changes
   (run-at-time "17:00" 86400
 	       (lambda ()
-		 (doric-themes-select 'doric-dark)))
+		 (doric-themes-select 'doric-obsidian)))
 
   (run-at-time "05:00" 86400
 	       (lambda ()
 		 (doric-themes-select 'doric-marble)))
   )
 
-  ;; make the headings ligher depends on new compat version
-  ;; (require 'compat)
-  (defun my-adjust-org-heading-colors ()
-  "Blend org headings toward the current theme background."
-  (let* ((bg-hex (face-background 'default nil t))
-	 (fg-hex (face-foreground 'org-level-1 nil t)))
-    (when (and bg-hex fg-hex)
-      (let* ((bg-rgb (color-name-to-rgb bg-hex))
-	     (fg-rgb (color-name-to-rgb fg-hex))
-	     (levels '((1 . 1)
-		       (2 . 0.85)
-		       (3 . 0.7)))
-	     c3-hex)
-	(dolist (item levels)
-	  (let* ((n (car item))
-		 (alpha (cdr item))
-		 (rgb (color-blend fg-rgb bg-rgb alpha))
-		 (hex (apply #'color-rgb-to-hex rgb)))
-	    (when (= n 3)
-	      (setq c3-hex hex))
-	    (set-face-foreground (intern (format "org-level-%d" n)) hex)))
-	(when c3-hex
-	  (dolist (n '(4 5 6 7 8))
-	    (set-face-foreground (intern (format "org-level-%d" n)) c3-hex)))))))
+;; make the headings ligher depends on new compat version
+;; (require 'compat)
+;; (defun my-adjust-org-heading-colors ()
+;;   "Blend org headings toward the current theme background."
+;;   (let* ((bg-hex (face-background 'default nil t))
+;;	 (fg-hex (face-foreground 'org-level-1 nil t)))
+;;     (when (and bg-hex fg-hex)
+;;       (let* ((bg-rgb (color-name-to-rgb bg-hex))
+;;	     (fg-rgb (color-name-to-rgb fg-hex))
+;;	     (levels '((1 . 1)
+;;		       (2 . 0.85)
+;;		       (3 . 0.7)))
+;;	     c3-hex)
+;;	(dolist (item levels)
+;;	  (let* ((n (car item))
+;;		 (alpha (cdr item))
+;;		 (rgb (color-blend fg-rgb bg-rgb alpha))
+;;		 (hex (apply #'color-rgb-to-hex rgb)))
+;;	    (when (= n 3)
+;;	      (setq c3-hex hex))
+;;	    (set-face-foreground (intern (format "org-level-%d" n)) hex)))
+;;	(when c3-hex
+;;	  (dolist (n '(4 5 6 7 8))
+;;	    (set-face-foreground (intern (format "org-level-%d" n)) c3-hex)))))))
 
-  (add-hook 'doric-themes-after-load-theme-hook #'my-adjust-org-heading-colors)
-(defun run-adjust-colors-once ()
-  "Run `my-adjust-org-heading-colors' once per session."
-  (my-adjust-org-heading-colors)
-  (remove-hook 'org-mode-hook #'run-adjust-colors-once))
+;; (add-hook 'doric-themes-after-load-theme-hook #'my-adjust-org-heading-colors)
+;; (defun run-adjust-colors-once ()
+;;   "Run `my-adjust-org-heading-colors' once per session."
+;;   (my-adjust-org-heading-colors)
+;;   (remove-hook 'org-mode-hook #'run-adjust-colors-once))
 
-(add-hook 'org-mode-hook #'run-adjust-colors-once)
+;; (add-hook 'org-mode-hook #'run-adjust-colors-once)
 
 ;; makes the firnge same as background
 (defun my-set-face-attributes ()
@@ -2049,6 +2056,14 @@ for html viewing defaults, used in elfeed aswell.
 
 (add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
 (add-hook 'after-init-hook #'my-set-face-attributes)
+
+;; makes the firnge same as background (modus themes)
+;; (defun my-set-face-attributes ()
+;;   (let ((bg (face-background 'default nil t)))
+;;     (set-face-attribute 'fringe nil :background bg :foreground bg)))
+
+;; (add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
+;; (add-hook 'after-init-hook #'my-set-face-attributes)
 
 ;; Set up the initial frame only if not in daemon mode
 (when (not (daemonp))
@@ -2182,7 +2197,7 @@ Fix whitespaces on file save.
 
 ** Winner Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package winner-mode
+(use-package winner
   :ensure nil
   :config
   (winner-mode 1))
