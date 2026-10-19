@@ -303,11 +303,414 @@ Enabling Transparency
 ;; This results in a more compact output that emphasizes performance
 (setq use-package-expand-minimally t)
 (setq use-package-minimum-reported-time 0.1)
-(setq use-package-enable-imenu-support t)
+(setq use-package-enable-imenu-support nil) ;; if true, then use package blocks take priority over org headings in org files.
 (setq use-package-always-defer t)
 (setq use-package-compute-statistics t)
 #+end_src
 
+** Org Mode
+TODO: need to make sure that all the org settings are in use-package org block. this is calling org on startup slowing it down.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org
+  :ensure t
+  :demand t
+  :mode ("\\.org\\'" . org-mode)
+  :init
+  (unless (package-installed-p 'org)
+    (package-vc-install
+     '(org :url "https://git.savannah.gnu.org/git/emacs/org-mode.git"
+	   :lisp-dir "lisp"
+	   :make '("autoloads" "info")
+	   :doc "doc/org.texi")))
+  :config
+  (setq org-modules '(ol-doi ol-bibtex ol-docview ol-info))
+  (setopt org-export-backends '(ascii html icalendar latex odt md))
+
+  (setq
+   ;; Edit settings
+   org-fold-catch-invisible-edits 'show-and-error
+   org-special-ctrl-a/e t
+   org-insert-heading-respect-content t
+   org-edit-src-content-indentation 0
+
+   ;; Org styling
+   org-hide-emphasis-markers t
+   org-use-sub-superscripts nil ;; avoid using sub-superscripts
+   org-hide-leading-stars t
+   )
+
+  ;; org fold
+  (setq org-startup-folded 'nofold)
+
+  ;; org imenu setup
+  (setq org-imenu-depth 5) ;; layers of headings in imenu
+  ;; note: in org for imenu to support it the first line has to be a first level heading and with exactly one space after the heading * heading not *  heading.
+
+  ;; Pomodoro sound
+  (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
+
+  ;; Ellipsis styling
+  (setq org-ellipsis " ...")
+
+  ;; pomodoro timer function
+  (defun pomodoro ()
+    "Start a Pomodoro Timer."
+    (interactive)
+    (org-timer-set-timer 25)) ;; Start a 25-min timer
+
+  ;; Defines cursor-sensor mode for emphasis marker
+  (defun my/emphasis-cursor (_win _pos type)
+    "Indicate position inside hidden emphasis with bar cursor."
+    (setq cursor-type (if (eq type 'entered) 'bar 'box)))
+
+  (defun my/org-remove-cursor-text-properties (beg end &rest _r)
+    "Remove cursor sensor properties."
+    (with-silent-modifications
+      (remove-text-properties beg end '(cursor-sensor-functions t))))
+
+  (defun my/org-do-emphasis-active-cursor (fun limit)
+    (when-let ((ret (funcall fun limit)))
+      (put-text-property (match-beginning 4) (match-end 2)
+			 'cursor-sensor-functions '(my/emphasis-cursor))
+      (org-rear-nonsticky-at (match-end 3))
+      ret))
+
+  (when org-hide-emphasis-markers
+    (advice-add 'org-unfontify-region :after 'my/org-remove-cursor-text-properties)
+    (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
+
+  ;; font lock for org-tables, make it more readable
+
+  (defun my-org-table-fontify-outer (limit)
+    (while (re-search-forward "^\\s-*|.*|\\s-*$" limit t)
+      (let ((beg (match-beginning 0))
+	    (end (match-end 0)))
+	(save-excursion
+	  (goto-char beg)
+	  (search-forward "|" end t)
+	  (put-text-property (1- (point)) (point)
+			     'face 'default))
+	(save-excursion
+	  (goto-char end)
+	  (search-backward "|" beg t)
+	  (put-text-property (point) (1+ (point))
+			     'face 'default)))
+      t))
+
+  (defun my-org-table-fontify-separator (limit)
+    (while (re-search-forward "^\\s-*|[-+]+|\\s-*$" limit t)
+      (put-text-property (match-beginning 0) (match-end 0)
+			 'face 'default)
+      t))
+
+  (with-eval-after-load 'org
+    (font-lock-add-keywords
+     'org-mode
+     '((my-org-table-fontify-separator)
+       (my-org-table-fontify-outer))
+     'append))
+
+  ;; Hooks
+  (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
+  (add-hook 'org-mode-hook 'variable-pitch-mode)
+  (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
+
+  ;; Org-agenda setup
+  (global-set-key (kbd "C-c a") nil)
+  (global-set-key (kbd "C-c a a") 'org-agenda-list)
+  (global-set-key (kbd "C-c a t") 'org-todo-list)
+  (global-set-key (kbd "C-c a o") 'org-agenda)
+
+  (which-key-add-key-based-replacements "C-c a" "org-agenda")
+  (which-key-add-key-based-replacements "C-c a o" "org-agenda-menu")
+
+  (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
+
+  ;; Org-latex formatting
+  (setq org-format-latex-options
+	(plist-put
+	 (plist-put org-format-latex-options :background "Transparent")
+	 :scale 0.9))
+  (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
+  (setq org-preview-latex-default-process 'dvisvgm)
+
+  ;; Babel
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((python . t)
+     (emacs-lisp . t)))
+
+  (setq org-confirm-babel-evaluate nil)
+
+  ;;; org-hide face
+
+  ;;for modus-themes or ef-themes
+  ;; (defun my/org-hide-face ()
+  ;;   (set-face-attribute 'org-hide nil
+  ;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
+  ;;		      :weight 'light))
+
+  ;; for foxglove themes
+  (defun my/org-hide-face ()
+    (set-face-attribute 'org-hide nil
+			:foreground (face-attribute 'shadow :foreground nil t)
+			:weight 'light))
+
+  (add-hook 'org-mode-hook #'my/org-hide-face)
+  (add-hook 'modus-themes-after-load-theme-hook #'my/org-hide-face)
+
+  ;; for doric-themes
+  ;; (defun my/org-hide-face ()
+  ;;   (set-face-attribute 'org-hide nil
+  ;;			:foreground (face-attribute 'internal-border :foreground nil t)
+  ;;			:weight 'light))
+
+  ;; (add-hook 'org-mode-hook #'my/org-hide-face)
+  ;; (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
+  )
+
+;; incremental loading
+(defvar my/post-startup-packages
+  '(org
+    org-macs
+    org-compat
+    oc-basic
+    ol-doi
+    ol-bibtex
+    ol-docview
+    ol-info
+    org-element
+    org-src
+    org-fold
+    denote
+    org-agenda
+    org-capture
+    org-tempo
+    ready-player)
+  "Packages to load incrementally after startup.")
+
+(defun my/load-packages-incrementally ()
+  (when my/post-startup-packages
+    (let ((pkg (pop my/post-startup-packages)))
+      (require pkg)
+      (message "Loaded %s" pkg)
+      (run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
+
+(run-with-idle-timer
+ 1 nil
+ (lambda ()
+   (message "Starting incremental preload")
+   (my/load-packages-incrementally)))
+
+(use-package org-latex-preview
+  :after org
+  :ensure nil
+  :config
+  ;; Increase preview width
+  (plist-put org-latex-preview-appearance-options
+	     :page-width 0.8)
+
+  ;; ;; Use dvisvgm to generate previews
+  ;; ;; You don't need this, it's the default:
+  ;; (setq org-latex-preview-process-default 'dvisvgm)
+
+  ;; Turn on `org-latex-preview-mode', it's built into Org and much faster/more
+  ;; featured than org-fragtog. (Remember to turn off/uninstall org-fragtog.)
+  (add-hook 'org-mode-hook 'org-latex-preview-mode)
+
+  ;; ;; Block C-n, C-p etc from opening up previews when using `org-latex-preview-mode'
+  ;; (setq org-latex-preview-mode-ignored-commands
+  ;;       '(next-line previous-line mwheel-scroll
+  ;;         scroll-up-command scroll-down-command))
+
+  ;; ;; Enable consistent equation numbering
+  ;; (setq org-latex-preview-numbered t)
+
+  ;; Bonus: Turn on live previews.  This shows you a live preview of a LaTeX
+  ;; fragment and updates the preview in real-time as you edit it.
+  ;; To preview only environments, set it to '(block edit-special) instead
+  (setq org-latex-preview-mode-display-live t)
+
+  ;; More immediate live-previews -- the default delay is 1 second
+  (setq org-latex-preview-mode-update-delay 0.25))
+
+#+end_src
+
+*** Org drill
+Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
+    Create TODOs in review.org linking to Denote notes.
+    Use a custom hook: When a TODO with a REVIEW property is marked DONE, it:
+	Deletes the task.
+	Creates a new TODO with an increased review interval.
+    Add review.org to org-agenda-files so tasks appear in your agenda.
+    Use Hyperbole to quickly jump to notes via smart file links.
+This gives you spaced repetition with automatic rescheduling and seamless navigation.
+
+*** TODO (is this necessary, something related to it in emacs 31) Org DnD image Advice
+This is a small code to automatically trim handwritten notes, when adding them.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;;;; Config
+
+(defvar my/org-image-folder "~/notes/images/")
+(defvar my/dnd-already-handled nil)
+
+;;;; Utilities
+
+(defun my/is-image-file (file)
+  (let ((ext (downcase (or (file-name-extension file) ""))))
+    (member ext '("png" "jpg" "jpeg" "gif" "bmp" "tiff" "webp" "svg"))))
+
+(defun my/org--ensure-image-dir ()
+  (unless (file-directory-p my/org-image-folder)
+    (make-directory my/org-image-folder t)))
+
+(defun my/org--unique-file (filename)
+  (let* ((base (file-name-base filename))
+	 (ext  (file-name-extension filename))
+	 (ts   (format-time-string "%Y%m%d_%H%M%S")))
+    (format "%s_%s.%s" base ts ext)))
+
+;;;; Image handling
+
+(defun my/org-dnd-handle-image (uri)
+  (let* ((file (dnd-get-local-file-name uri))
+	 (filename (my/org--unique-file
+		    (file-name-nondirectory file)))
+	 (new-path (expand-file-name filename my/org-image-folder)))
+
+    (my/org--ensure-image-dir)
+
+    (call-process
+     "magick" nil nil nil
+     file
+     "-fuzz" "20%"
+     "-trim" "+repage"
+     "-strip"
+     new-path)
+
+    (insert (org-link-make-string (concat "file:" new-path)))))
+
+(defun my/org-dnd-insert-raw (uri)
+  (let ((file (dnd-get-local-file-name uri)))
+    (insert (org-link-make-string (concat "file:" file)))))
+
+;;;; Menu
+
+(defun my/org-dnd-image-menu (uri)
+  (pcase (read-char-choice
+	  "[c] clean+insert  [i] insert raw  [o] org default: "
+	  '(?c ?i ?o))
+    (?c (my/org-dnd-handle-image uri) t)
+    (?i (my/org-dnd-insert-raw uri) t)
+    (?o nil))) ;; fallback
+
+;;;; Core interception
+
+(defun my/dnd-handle-multiple-urls (orig &rest args)
+  "Intercept DND in Org mode for images only."
+
+  ;; IMPORTANT: reset state per event
+  (setq my/dnd-already-handled nil)
+
+  (let* ((window (nth 0 args))
+	 (urls   (nth 1 args)))
+    (with-current-buffer (window-buffer window)
+      (if (and (derived-mode-p 'org-mode)
+	       (= (length urls) 1))
+	  (let* ((uri  (car urls))
+		 (file (dnd-get-local-file-name uri)))
+	    (if (and file (my/is-image-file file))
+		(let ((handled (my/org-dnd-image-menu uri)))
+		  (if handled
+		      (setq my/dnd-already-handled t)
+		    (apply orig args)))
+	      (apply orig args)))
+	(apply orig args)))))
+
+;;;; Block Org fallback ONLY when handled
+
+(defun my/org-dnd-block-fallback (orig &rest args)
+  (if my/dnd-already-handled
+      (progn
+	(setq my/dnd-already-handled nil)
+	nil) ;; block Org handler
+    (apply orig args)))
+
+;;;; Install
+
+(advice-add 'dnd-handle-multiple-urls :around
+	    #'my/dnd-handle-multiple-urls)
+
+(with-eval-after-load 'org
+  (advice-add 'org--dnd-local-file-handler :around
+	      #'my/org-dnd-block-fallback))
+#+end_src
+
+*** org-source-code programming support
+This is needed currently,
+https://github.com/joaotavora/eglot/issues/523 check if this issue is resolved then you can remove this code.
+
+**** TODO we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (defvar pratik-org-src-temp-files nil
+;;   "List of temp files created for org-src + eglot integration.")
+
+;; (defun pratik-org-src--edit-advice (orig-fun &rest args)
+;;   "Advice around `org-edit-special' to enable LSP in source block buffers."
+;;   (let* ((info (org-babel-get-src-block-info)) ; Only valid in Org buffer
+;;	 (lang (car info))
+;;	 (params (nth 2 info))
+;;	 (is-remote (file-remote-p default-directory))
+;;	 (tangle (cdr (assoc :tangle params)))
+;;	 (dir (or (cdr (assoc :dir params)) default-directory))
+;;	 (ext (pcase lang
+;;		("python" "py")
+;;		("emacs-lisp" "el")
+;;		("latex" "tex")
+;;		(_ "tmp")))
+;;	 (file (if (and tangle (not (string= tangle "no")))
+;;		   (expand-file-name tangle dir)
+;;		 (make-temp-file "org-src-eglot" nil (concat "." ext)))))
+;;     ;; Tangle first before switching modes
+;;     (org-babel-tangle '(4))
+
+;;     ;; Now call the original edit function (switches to edit buffer)
+;;     (apply orig-fun args)
+
+;;     ;; Now we are in the special edit buffer (e.g., python-mode)
+;;     ;; Set buffer-local variables for LSP/flycheck to work
+;;     (setq-local buffer-file-name file)
+;;     (setq-local default-directory dir)
+
+;;     ;; Track temp files for later cleanup
+;;     (unless (and tangle (not (string= tangle "no")))
+;;       (push file pratik-org-src-temp-files)
+;;       (add-hook 'kill-buffer-hook
+;;		(lambda ()
+;;		  (when (and buffer-file-name
+;;			     (member buffer-file-name pratik-org-src-temp-files))
+;;		    (delete-file buffer-file-name)
+;;		    (setq pratik-org-src-temp-files
+;;			  (remove buffer-file-name pratik-org-src-temp-files))))
+;;		nil t))
+
+;;     ;; Start LSP or syntax checker
+;;     (pcase lang
+;;       ("python" (eglot-ensure))
+;;       ("emacs-lisp" (flymake-mode 1))
+;;       (_ nil))))
+
+;; ;; Use advice instead of a hook
+;; (advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
+#+end_src
+
+*** Latex
+only useful if you are editing tex files.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (use-package auctex :ensure t :demand t)
+;; (use-package cdlatex :ensure t :demand t)
+#+end_src
+** Other things just so that org is loaded first
 *** Defining Variables
 AporeticSerifMonoNerdFont
 Aporetic Serif
@@ -1381,6 +1784,7 @@ setenv makes it so that sub processes can also see the path.
 	       "C:/Program Files/Git/usr/bin"
 	       "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
 	       "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"
+	       "C:/msys64/ucrt64/bin"
 	       ))
   (my/add-to-path dir))
 #+end_src
@@ -1487,360 +1891,6 @@ This is the current modeline setup slowly build it up using the funcitons in pra
 	  " ")))
 #+end_src
 
-** Org Mode
-TODO: need to make sure that all the org settings are in use-package org block. this is calling org on startup slowing it down.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(use-package org
-  :ensure nil
-  :mode ("\\.org\\'" . org-mode)
-  :config
-  (setq org-modules '(ol-doi ol-bibtex ol-docview ol-info))
-  (setopt org-export-backends '(ascii html icalendar latex odt md))
-
-  (setq
-   ;; Edit settings
-   org-fold-catch-invisible-edits 'show-and-error
-   org-special-ctrl-a/e t
-   org-insert-heading-respect-content t
-   org-edit-src-content-indentation 0
-
-   ;; Org styling
-   org-hide-emphasis-markers t
-   org-use-sub-superscripts nil ;; avoid using sub-superscripts
-   org-hide-leading-stars t
-   )
-
-  ;; org fold
-  (setq org-startup-folded 'nofold)
-
-  ;; org imenu setup
-  (setq org-imenu-depth 5) ;; layers of headings in imenu
-  ;; note: in org for imenu to support it the first line has to be a first level heading and with exactly one space after the heading * heading not *  heading.
-
-  ;; Pomodoro sound
-  (setq org-clock-sound "~/dotfiles/emacs/.config/sounds/Interface.wav")
-
-  ;; Ellipsis styling
-  (setq org-ellipsis " ...")
-
-  ;; pomodoro timer function
-  (defun pomodoro ()
-    "Start a Pomodoro Timer."
-    (interactive)
-    (org-timer-set-timer 25)) ;; Start a 25-min timer
-
-  ;; Defines cursor-sensor mode for emphasis marker
-  (defun my/emphasis-cursor (_win _pos type)
-    "Indicate position inside hidden emphasis with bar cursor."
-    (setq cursor-type (if (eq type 'entered) 'bar 'box)))
-
-  (defun my/org-remove-cursor-text-properties (beg end &rest _r)
-    "Remove cursor sensor properties."
-    (with-silent-modifications
-      (remove-text-properties beg end '(cursor-sensor-functions t))))
-
-  (defun my/org-do-emphasis-active-cursor (fun limit)
-    (when-let ((ret (funcall fun limit)))
-      (put-text-property (match-beginning 4) (match-end 2)
-			 'cursor-sensor-functions '(my/emphasis-cursor))
-      (org-rear-nonsticky-at (match-end 3))
-      ret))
-
-  (when org-hide-emphasis-markers
-    (advice-add 'org-unfontify-region :after 'my/org-remove-cursor-text-properties)
-    (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
-
-  ;; font lock for org-tables, make it more readable
-
-  (defun my-org-table-fontify-outer (limit)
-    (while (re-search-forward "^\\s-*|.*|\\s-*$" limit t)
-      (let ((beg (match-beginning 0))
-	    (end (match-end 0)))
-	(save-excursion
-	  (goto-char beg)
-	  (search-forward "|" end t)
-	  (put-text-property (1- (point)) (point)
-			     'face 'default))
-	(save-excursion
-	  (goto-char end)
-	  (search-backward "|" beg t)
-	  (put-text-property (point) (1+ (point))
-			     'face 'default)))
-      t))
-
-  (defun my-org-table-fontify-separator (limit)
-    (while (re-search-forward "^\\s-*|[-+]+|\\s-*$" limit t)
-      (put-text-property (match-beginning 0) (match-end 0)
-			 'face 'default)
-      t))
-
-  (with-eval-after-load 'org
-    (font-lock-add-keywords
-     'org-mode
-     '((my-org-table-fontify-separator)
-       (my-org-table-fontify-outer))
-     'append))
-
-  ;; Hooks
-  (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
-  (add-hook 'org-mode-hook 'variable-pitch-mode)
-  (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
-
-  ;; Org-agenda setup
-  (global-set-key (kbd "C-c a") nil)
-  (global-set-key (kbd "C-c a a") 'org-agenda-list)
-  (global-set-key (kbd "C-c a t") 'org-todo-list)
-  (global-set-key (kbd "C-c a o") 'org-agenda)
-
-  (which-key-add-key-based-replacements "C-c a" "org-agenda")
-  (which-key-add-key-based-replacements "C-c a o" "org-agenda-menu")
-
-  (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
-
-  ;; Org-latex formatting
-  (setq org-format-latex-options
-	(plist-put
-	 (plist-put org-format-latex-options :background "Transparent")
-	 :scale 0.9))
-  (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
-  (setq org-preview-latex-default-process 'dvisvgm)
-
-  ;; Babel
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((python . t)
-     (emacs-lisp . t)))
-
-  (setq org-confirm-babel-evaluate nil)
-
-  ;;; org-hide face
-
-  ;; for modus-themes or ef-themes
-  ;; (defun my/org-hide-face ()
-  ;;   (set-face-attribute 'org-hide nil
-  ;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
-  ;;		      :weight 'light))
-
-  ;; (add-hook 'org-mode-hook #'my/org-hide-face)
-
-  ;; for doric-themes
-  (defun my/org-hide-face ()
-    (set-face-attribute 'org-hide nil
-			:foreground (face-attribute 'internal-border :foreground nil t)
-			:weight 'light))
-
-  (add-hook 'org-mode-hook #'my/org-hide-face)
-  (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
-   )
-
-;; incremental loading
-(defvar my/post-startup-packages
-  '(org
-    org-macs
-    org-compat
-    oc-basic
-    ol-doi
-    ol-bibtex
-    ol-docview
-    ol-info
-    org-element
-    org-src
-    org-fold
-    denote
-    org-agenda
-    org-capture
-    org-tempo
-    ready-player)
-  "Packages to load incrementally after startup.")
-
-(defun my/load-packages-incrementally ()
-  (when my/post-startup-packages
-    (let ((pkg (pop my/post-startup-packages)))
-      (require pkg)
-      (message "Loaded %s" pkg)
-      (run-with-idle-timer 0.5 nil #'my/load-packages-incrementally))))
-
-(run-with-idle-timer
- 1 nil
- (lambda ()
-   (message "Starting incremental preload")
-   (my/load-packages-incrementally)))
-#+end_src
-
-*** Org drill
-Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
-    Create TODOs in review.org linking to Denote notes.
-    Use a custom hook: When a TODO with a REVIEW property is marked DONE, it:
-	Deletes the task.
-	Creates a new TODO with an increased review interval.
-    Add review.org to org-agenda-files so tasks appear in your agenda.
-    Use Hyperbole to quickly jump to notes via smart file links.
-This gives you spaced repetition with automatic rescheduling and seamless navigation.
-
-*** TODO (is this necessary, something related to it in emacs 31) Org DnD image Advice
-This is a small code to automatically trim handwritten notes, when adding them.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;;;; Config
-
-(defvar my/org-image-folder "~/notes/images/")
-(defvar my/dnd-already-handled nil)
-
-;;;; Utilities
-
-(defun my/is-image-file (file)
-  (let ((ext (downcase (or (file-name-extension file) ""))))
-    (member ext '("png" "jpg" "jpeg" "gif" "bmp" "tiff" "webp" "svg"))))
-
-(defun my/org--ensure-image-dir ()
-  (unless (file-directory-p my/org-image-folder)
-    (make-directory my/org-image-folder t)))
-
-(defun my/org--unique-file (filename)
-  (let* ((base (file-name-base filename))
-	 (ext  (file-name-extension filename))
-	 (ts   (format-time-string "%Y%m%d_%H%M%S")))
-    (format "%s_%s.%s" base ts ext)))
-
-;;;; Image handling
-
-(defun my/org-dnd-handle-image (uri)
-  (let* ((file (dnd-get-local-file-name uri))
-	 (filename (my/org--unique-file
-		    (file-name-nondirectory file)))
-	 (new-path (expand-file-name filename my/org-image-folder)))
-
-    (my/org--ensure-image-dir)
-
-    (call-process
-     "magick" nil nil nil
-     file
-     "-fuzz" "20%"
-     "-trim" "+repage"
-     "-strip"
-     new-path)
-
-    (insert (org-link-make-string (concat "file:" new-path)))))
-
-(defun my/org-dnd-insert-raw (uri)
-  (let ((file (dnd-get-local-file-name uri)))
-    (insert (org-link-make-string (concat "file:" file)))))
-
-;;;; Menu
-
-(defun my/org-dnd-image-menu (uri)
-  (pcase (read-char-choice
-	  "[c] clean+insert  [i] insert raw  [o] org default: "
-	  '(?c ?i ?o))
-    (?c (my/org-dnd-handle-image uri) t)
-    (?i (my/org-dnd-insert-raw uri) t)
-    (?o nil))) ;; fallback
-
-;;;; Core interception
-
-(defun my/dnd-handle-multiple-urls (orig &rest args)
-  "Intercept DND in Org mode for images only."
-
-  ;; IMPORTANT: reset state per event
-  (setq my/dnd-already-handled nil)
-
-  (let* ((window (nth 0 args))
-	 (urls   (nth 1 args)))
-    (with-current-buffer (window-buffer window)
-      (if (and (derived-mode-p 'org-mode)
-	       (= (length urls) 1))
-	  (let* ((uri  (car urls))
-		 (file (dnd-get-local-file-name uri)))
-	    (if (and file (my/is-image-file file))
-		(let ((handled (my/org-dnd-image-menu uri)))
-		  (if handled
-		      (setq my/dnd-already-handled t)
-		    (apply orig args)))
-	      (apply orig args)))
-	(apply orig args)))))
-
-;;;; Block Org fallback ONLY when handled
-
-(defun my/org-dnd-block-fallback (orig &rest args)
-  (if my/dnd-already-handled
-      (progn
-	(setq my/dnd-already-handled nil)
-	nil) ;; block Org handler
-    (apply orig args)))
-
-;;;; Install
-
-(advice-add 'dnd-handle-multiple-urls :around
-	    #'my/dnd-handle-multiple-urls)
-
-(with-eval-after-load 'org
-  (advice-add 'org--dnd-local-file-handler :around
-	      #'my/org-dnd-block-fallback))
-#+end_src
-
-*** org-source-code programming support
-This is needed currently,
-https://github.com/joaotavora/eglot/issues/523 check if this issue is resolved then you can remove this code.
-
-**** TODO we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (defvar pratik-org-src-temp-files nil
-;;   "List of temp files created for org-src + eglot integration.")
-
-;; (defun pratik-org-src--edit-advice (orig-fun &rest args)
-;;   "Advice around `org-edit-special' to enable LSP in source block buffers."
-;;   (let* ((info (org-babel-get-src-block-info)) ; Only valid in Org buffer
-;;	 (lang (car info))
-;;	 (params (nth 2 info))
-;;	 (is-remote (file-remote-p default-directory))
-;;	 (tangle (cdr (assoc :tangle params)))
-;;	 (dir (or (cdr (assoc :dir params)) default-directory))
-;;	 (ext (pcase lang
-;;		("python" "py")
-;;		("emacs-lisp" "el")
-;;		("latex" "tex")
-;;		(_ "tmp")))
-;;	 (file (if (and tangle (not (string= tangle "no")))
-;;		   (expand-file-name tangle dir)
-;;		 (make-temp-file "org-src-eglot" nil (concat "." ext)))))
-;;     ;; Tangle first before switching modes
-;;     (org-babel-tangle '(4))
-
-;;     ;; Now call the original edit function (switches to edit buffer)
-;;     (apply orig-fun args)
-
-;;     ;; Now we are in the special edit buffer (e.g., python-mode)
-;;     ;; Set buffer-local variables for LSP/flycheck to work
-;;     (setq-local buffer-file-name file)
-;;     (setq-local default-directory dir)
-
-;;     ;; Track temp files for later cleanup
-;;     (unless (and tangle (not (string= tangle "no")))
-;;       (push file pratik-org-src-temp-files)
-;;       (add-hook 'kill-buffer-hook
-;;		(lambda ()
-;;		  (when (and buffer-file-name
-;;			     (member buffer-file-name pratik-org-src-temp-files))
-;;		    (delete-file buffer-file-name)
-;;		    (setq pratik-org-src-temp-files
-;;			  (remove buffer-file-name pratik-org-src-temp-files))))
-;;		nil t))
-
-;;     ;; Start LSP or syntax checker
-;;     (pcase lang
-;;       ("python" (eglot-ensure))
-;;       ("emacs-lisp" (flymake-mode 1))
-;;       (_ nil))))
-
-;; ;; Use advice instead of a hook
-;; (advice-add 'org-edit-special :around #'pratik-org-src--edit-advice)
-#+end_src
-
-*** Latex
-only useful if you are editing tex files.
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package auctex :ensure t :demand t)
-;; (use-package cdlatex :ensure t :demand t)
-#+end_src
 ** org-node
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package org-mem
@@ -1903,6 +1953,30 @@ only useful if you are editing tex files.
   :hook (python-ts-mode . pyvenv-mode))
 #+end_src
 
+** Reader
+Emacs reader, works really well
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package reader
+  :ensure t
+  :vc (:url "https://codeberg.org/MonadicSheep/emacs-reader")
+  :mode (("\\.pdf\\'" . reader-mode)
+	 ("\\.epub\\'" . reader-mode)
+	 ("\\.mobi\\'" . reader-mode)
+	 ("\\.fb2\\'" . reader-mode)
+	 ("\\.xps\\'" . reader-mode)
+	 ("\\.cbz\\'" . reader-mode)
+	 ("\\.odt\\'" . reader-mode)
+	 ("\\.ods\\'" . reader-mode)
+	 ("\\.odp\\'" . reader-mode)
+	 ("\\.odg\\'" . reader-mode)
+	 ("\\.docx\\'" . reader-mode)
+	 ("\\.pptx\\'" . reader-mode)
+	 ("\\.xlsx\\'" . reader-mode))
+  :config
+  ;; auto makes the images blurry
+  (setopt image-scaling-factor 1.0))
+#+end_src
+
 ** Ready Player
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package ready-player
@@ -1930,10 +2004,11 @@ only useful if you are editing tex files.
 ** Shell
 emacs on windows is using cmdproxy.exe which has weird syntax. here we configure it to use git bash.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(setq shell-file-name "bash")  ;; Git Bash path
-(setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
-(setq explicit-bash.exe-args '("--login"))
-(setq explicit-shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")
+;; these cause the org latex preview to not work
+;; (setq shell-file-name "bash")  ;; Git Bash path
+;; (setq shell-command-switch "-c")  ;; Make sure Emacs passes commands to Git Bash correctly
+;; (setq explicit-bash.exe-args '("--login"))
+;; (setq explicit-shell-file-name "C:/PROGRA~1/Git/bin/bash.exe")
 
 ;; copied form  https://stackoverflow.com/questions/45540646/msys2-inferior-shell-in-emacs-on-windows
 #+end_src
@@ -1976,7 +2051,7 @@ for html viewing defaults, used in elfeed aswell.
   ;; (run-at-time "05:00" 86400
   ;;	       (lambda ()
   ;;		 (load-theme 'modus-operandi)))
-  ;; (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes, doric-themes don't work.
+  (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes or any derivates don't work.
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
 	modus-themes-to-rotate modus-themes-items
@@ -1986,35 +2061,70 @@ for html viewing defaults, used in elfeed aswell.
 	modus-themes-bold-constructs t
 	modus-themes-completions '((t . (bold)))
 	modus-themes-prompts '(bold))
+  (setopt modus-themes-common-palette-overrides
+      '((border-mode-line-active unspecified)
+	(border-mode-line-inactive unspecified)
+	(bg-fringe fg-main)
+	(fg-fringe fg-main)))
   )
 
-(use-package doric-themes
+;; foxglove themes
+(use-package foxglove-themes
   :ensure t
-  :vc (:url "https://github.com/protesilaos/doric-themes"
-	    :rev :newest)
   :demand t
+  :vc (:url "https://gitlab.com/vegasharmon/foxglove-themes" :rev :newest)
   :config
-  (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
-  (setq doric-themes-to-rotate doric-themes-collection)
+  (load-theme 'foxglove :no-confirm)
+  (setopt foxglove-themes-blocks 'well)
+  (setopt foxglove-themes-tags nil)
+  (setopt foxglove-themes-heading-styles nil)
 
-  (defun my/doric-theme-by-time ()
+    (defun my/foxglove-theme-by-time ()
     (let ((hour (string-to-number (format-time-string "%H"))))
       (if (or (>= hour 17) (< hour 5))
-	  (doric-themes-select 'doric-obsidian)
-	(doric-themes-select 'doric-marble))))
+	  (modus-themes-select 'foxglove-vellum-dark)
+	(modus-themes-select 'foxglove-vellum))))
 
   ;; Set correct theme immediately at startup
-  (my/doric-theme-by-time)
+  (my/foxglove-theme-by-time)
 
   ;; Then schedule future changes
   (run-at-time "17:00" 86400
 	       (lambda ()
-		 (doric-themes-select 'doric-obsidian)))
+		 (modus-themes-select 'foxglove-vellum-dark)))
 
   (run-at-time "05:00" 86400
 	       (lambda ()
-		 (doric-themes-select 'doric-marble)))
+		 (modus-themes-select 'foxglove-vellum)))
   )
+
+;; (use-package doric-themes
+;;   :ensure t
+;;   :vc (:url "https://github.com/protesilaos/doric-themes"
+;;	    :rev :newest)
+;;   :demand t
+;;   :config
+;;   (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
+;;   (setq doric-themes-to-rotate doric-themes-collection)
+
+;;   (defun my/doric-theme-by-time ()
+;;     (let ((hour (string-to-number (format-time-string "%H"))))
+;;       (if (or (>= hour 17) (< hour 5))
+;;	  (doric-themes-select 'doric-obsidian)
+;;	(doric-themes-select 'doric-marble))))
+
+;;   ;; Set correct theme immediately at startup
+;;   (my/doric-theme-by-time)
+
+;;   ;; Then schedule future changes
+;;   (run-at-time "17:00" 86400
+;;	       (lambda ()
+;;		 (doric-themes-select 'doric-obsidian)))
+
+;;   (run-at-time "05:00" 86400
+;;	       (lambda ()
+;;		 (doric-themes-select 'doric-marble)))
+;;   )
 
 ;; make the headings ligher depends on new compat version
 ;; (require 'compat)
@@ -2050,12 +2160,12 @@ for html viewing defaults, used in elfeed aswell.
 ;; (add-hook 'org-mode-hook #'run-adjust-colors-once)
 
 ;; makes the firnge same as background
-(defun my-set-face-attributes ()
-  (let ((bg (face-background 'default nil t)))
-    (set-face-attribute 'fringe nil :background bg :foreground bg)))
+;; (defun my-set-face-attributes ()
+;;   (let ((bg (face-background 'default nil t)))
+;;     (set-face-attribute 'fringe nil :background bg :foreground bg)))
 
-(add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
-(add-hook 'after-init-hook #'my-set-face-attributes)
+;; (add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
+;; (add-hook 'after-init-hook #'my-set-face-attributes)
 
 ;; makes the firnge same as background (modus themes)
 ;; (defun my-set-face-attributes ()
@@ -2065,11 +2175,11 @@ for html viewing defaults, used in elfeed aswell.
 ;; (add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
 ;; (add-hook 'after-init-hook #'my-set-face-attributes)
 
-;; Set up the initial frame only if not in daemon mode
-(when (not (daemonp))
-  (my-set-face-attributes))
-(when (not (daemonp))
-  (my-adjust-org-heading-colors))
+;; ;; Set up the initial frame only if not in daemon mode
+;; (when (not (daemonp))
+;;   (my-set-face-attributes))
+;; (when (not (daemonp))
+;;   (my-adjust-org-heading-colors))
 #+end_src
 
 ** VC
@@ -2256,6 +2366,8 @@ You can use the bindings CTRL plus =/- for zooming in/out.  You can also use CTR
 
 pop to mark command is linked to "C-u C-spc". it enables us to cycle through our marks.
 in buffers with q as bury the buffer "C-u q" kill the buffer.
+
+In windows, with changing the high dpi override to be managed by appliation, emacs starts a lot faster.
 
 # Local Variables:
 # eval: (highlight-until-save-mode 1)
