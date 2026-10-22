@@ -36,10 +36,10 @@
       frame-inhibit-implied-resize t
       frame-title-format
       '(:eval
-	(let ((project (project-current)))
-	  (if project
-	      (concat "Emacs - [p] " (project-name project))
-	    (concat "Emacs - " (buffer-name))))))
+        (let ((project (project-current)))
+          (if project
+              (concat "Emacs - [p] " (project-name project))
+            (concat "Emacs - " (buffer-name))))))
 
 ;;; Miscellaneous
 
@@ -77,14 +77,14 @@
   ;; Reduce *Message* noise at startup. An empty scratch buffer (or the
   ;; dashboard) is more than enough, and faster to display.
   (setq inhibit-startup-screen t
-	inhibit-startup-echo-area-message user-login-name)
+        inhibit-startup-echo-area-message user-login-name)
   (setq initial-buffer-choice t
-	inhibit-startup-buffer-menu t
-	inhibit-x-resources t)
+        inhibit-startup-buffer-menu t
+        inhibit-x-resources t)
 
   ;; Disable bidirectional text scanning for a modest performance boost.
   (setq-default bidi-display-reordering 'left-to-right
-		bidi-paragraph-direction 'left-to-right)
+                bidi-paragraph-direction 'left-to-right)
 
   ;; Give up some bidirectional functionality for slightly faster re-display.
   (setq bidi-inhibit-bpa t)
@@ -106,7 +106,7 @@
 ;;; Performance: File-name-handler-alist
 
 (defvar my--old-file-name-handler-alist (default-toplevel-value
-					 'file-name-handler-alist))
+                                         'file-name-handler-alist))
 
 (defun my--respect-file-handlers (fn args-left)
   "Respect file handlers.
@@ -115,8 +115,8 @@ Emacs processes command-line files very early in startup. These files may
 include special paths like TRAMP paths, so restore `file-name-handler-alist' for
 this stage of initialization."
   (let ((file-name-handler-alist (if args-left
-				     my--old-file-name-handler-alist
-				   file-name-handler-alist)))
+                                     my--old-file-name-handler-alist
+                                   file-name-handler-alist)))
     (funcall fn args-left)))
 
 (defun my--restore-file-name-handler-alist ()
@@ -125,7 +125,7 @@ this stage of initialization."
    'file-name-handler-alist
    ;; Merge instead of overwrite to preserve any changes made since startup.
    (delete-dups (append file-name-handler-alist
-			my--old-file-name-handler-alist))))
+                        my--old-file-name-handler-alist))))
 
 
 ;; Determine the state of bundled libraries using calc-loaddefs.el. If
@@ -137,7 +137,7 @@ this stage of initialization."
  (if (locate-file-internal "calc-loaddefs.el" load-path)
      nil
    (list (rassq 'jka-compr-handler
-		my--old-file-name-handler-alist))))
+                my--old-file-name-handler-alist))))
 
 ;; Ensure the new value persists through any current let-binding.
 (put 'file-name-handler-alist 'initial-value
@@ -148,7 +148,7 @@ this stage of initialization."
 (advice-add 'command-line-1 :around #'my--respect-file-handlers)
 
 (add-hook 'emacs-startup-hook #'my--restore-file-name-handler-alist
-	  101)
+          101)
 
 ;;; Performance: Inhibit redisplay
 
@@ -186,8 +186,8 @@ this stage of initialization."
   (dolist (buf (buffer-list))
     (with-current-buffer buf
       (when (local-variable-p 'mode-line-format)
-	(setq my--hidden-mode-line mode-line-format)
-	(setq mode-line-format nil)))))
+        (setq my--hidden-mode-line mode-line-format)
+        (setq mode-line-format nil)))))
 
 ;;; Restore values
 (defun my--startup-load-user-init-file (fn &rest args)
@@ -203,17 +203,17 @@ this stage of initialization."
     ;; Restore mode-line (global default)
     (unless (default-toplevel-value 'mode-line-format)
       (setq-default mode-line-format
-		    (get 'mode-line-format 'initial-value)))
+                    (get 'mode-line-format 'initial-value)))
 
     ;; Restore mode-line in existing buffers
     (dolist (buf (buffer-list))
       (with-current-buffer buf
-	(when (local-variable-p 'my--hidden-mode-line)
-	  (setq mode-line-format my--hidden-mode-line)
-	  (kill-local-variable 'my--hidden-mode-line))))))
+        (when (local-variable-p 'my--hidden-mode-line)
+          (setq mode-line-format my--hidden-mode-line)
+          (kill-local-variable 'my--hidden-mode-line))))))
 
 (advice-add 'startup--load-user-init-file :around
-	    #'my--startup-load-user-init-file)
+            #'my--startup-load-user-init-file)
 
 ;;; UI elements
 
@@ -291,13 +291,13 @@ Enabling Transparency
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq package-quickstart t) ;; combines all packages into a single package.
 (setq package-archives '(("melpa"        . "https://melpa.org/packages/")
-			 ("gnu"          . "https://elpa.gnu.org/packages/")
-			 ("nongnu"       . "https://elpa.nongnu.org/nongnu/")
-			 ("melpa-stable" . "https://stable.melpa.org/packages/")))
+                         ("gnu"          . "https://elpa.gnu.org/packages/")
+                         ("nongnu"       . "https://elpa.nongnu.org/nongnu/")
+                         ("melpa-stable" . "https://stable.melpa.org/packages/")))
 (setq package-archive-priorities '(("gnu"    . 99)
-				   ("nongnu" . 80)
-				   ("melpa"  . 70)
-				   ("melpa-stable" . 50)))
+                                   ("nongnu" . 80)
+                                   ("melpa"  . 70)
+                                   ("melpa-stable" . 50)))
 (setq package-install-upgrade-built-in t)
 
 ;; This results in a more compact output that emphasizes performance
@@ -314,14 +314,14 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 (use-package org
   :ensure t
   :demand t
-  :mode ("\\.org\\'" . org-mode)
+  ;; :mode ("\\.org\\'" . org-mode)
   :init
   (unless (package-installed-p 'org)
     (package-vc-install
      '(org :url "https://git.savannah.gnu.org/git/emacs/org-mode.git"
-	   :lisp-dir "lisp"
-	   :make '("autoloads" "info")
-	   :doc "doc/org.texi")))
+           :lisp-dir "lisp"
+           :make '("autoloads" "info")
+           :doc "doc/org.texi")))
   :config
   (setq org-modules '(ol-doi ol-bibtex ol-docview ol-info))
   (setopt org-export-backends '(ascii html icalendar latex odt md))
@@ -334,13 +334,25 @@ TODO: need to make sure that all the org settings are in use-package org block. 
    org-edit-src-content-indentation 0
 
    ;; Org styling
-   org-hide-emphasis-markers t
+   org-hide-emphasis-markers nil ;; true
    org-use-sub-superscripts nil ;; avoid using sub-superscripts
-   org-hide-leading-stars t
+   org-hide-leading-stars nil
    )
+
+  ;; org indent mode
+  (add-hook 'org-mode-hook #'org-indent-mode)
+  (setq org-indent-mode-turns-on-hiding-stars nil)
+  (setq org-adapt-indentation nil)
 
   ;; org fold
   (setq org-startup-folded 'nofold)
+
+  ;; org capture
+  (setq org-capture-templates
+      '(("j" "Journal" entry
+         (file+olp+datetree "journal.org")
+         "* %U\n\n%?"
+         :empty-lines 1)))
 
   ;; org imenu setup
   (setq org-imenu-depth 5) ;; layers of headings in imenu
@@ -358,49 +370,28 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     (interactive)
     (org-timer-set-timer 25)) ;; Start a 25-min timer
 
-  ;; Defines cursor-sensor mode for emphasis marker
-  (defun my/emphasis-cursor (_win _pos type)
-    "Indicate position inside hidden emphasis with bar cursor."
-    (setq cursor-type (if (eq type 'entered) 'bar 'box)))
-
-  (defun my/org-remove-cursor-text-properties (beg end &rest _r)
-    "Remove cursor sensor properties."
-    (with-silent-modifications
-      (remove-text-properties beg end '(cursor-sensor-functions t))))
-
-  (defun my/org-do-emphasis-active-cursor (fun limit)
-    (when-let ((ret (funcall fun limit)))
-      (put-text-property (match-beginning 4) (match-end 2)
-			 'cursor-sensor-functions '(my/emphasis-cursor))
-      (org-rear-nonsticky-at (match-end 3))
-      ret))
-
-  (when org-hide-emphasis-markers
-    (advice-add 'org-unfontify-region :after 'my/org-remove-cursor-text-properties)
-    (advice-add 'org-do-emphasis-faces :around 'my/org-do-emphasis-active-cursor))
-
   ;; font lock for org-tables, make it more readable
 
   (defun my-org-table-fontify-outer (limit)
     (while (re-search-forward "^\\s-*|.*|\\s-*$" limit t)
       (let ((beg (match-beginning 0))
-	    (end (match-end 0)))
-	(save-excursion
-	  (goto-char beg)
-	  (search-forward "|" end t)
-	  (put-text-property (1- (point)) (point)
-			     'face 'default))
-	(save-excursion
-	  (goto-char end)
-	  (search-backward "|" beg t)
-	  (put-text-property (point) (1+ (point))
-			     'face 'default)))
+            (end (match-end 0)))
+        (save-excursion
+          (goto-char beg)
+          (search-forward "|" end t)
+          (put-text-property (1- (point)) (point)
+                             'face 'default))
+        (save-excursion
+          (goto-char end)
+          (search-backward "|" beg t)
+          (put-text-property (point) (1+ (point))
+                             'face 'default)))
       t))
 
   (defun my-org-table-fontify-separator (limit)
     (while (re-search-forward "^\\s-*|[-+]+|\\s-*$" limit t)
       (put-text-property (match-beginning 0) (match-end 0)
-			 'face 'default)
+                         'face 'default)
       t))
 
   (with-eval-after-load 'org
@@ -413,7 +404,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   ;; Hooks
   (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
   (add-hook 'org-mode-hook 'variable-pitch-mode)
-  (add-hook 'org-mode-hook (lambda () (when org-hide-emphasis-markers (cursor-sensor-mode 1))))
 
   ;; Org-agenda setup
   (global-set-key (kbd "C-c a") nil)
@@ -427,12 +417,11 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
   ;; Org-latex formatting
-  (setq org-format-latex-options
-	(plist-put
-	 (plist-put org-format-latex-options :background "Transparent")
-	 :scale 0.9))
-  (setq org-preview-latex-image-directory "~/.emacs.d/org-latex/")
-  (setq org-preview-latex-default-process 'dvisvgm)
+  ;; (setq org-format-latex-options
+  ;;	(plist-put
+  ;;	 (plist-put org-format-latex-options :background "Transparent")
+  ;;	 :scale 0.9))
+  (setq org-latex-preview-cache "~/.emacs.d/org-latex/")
 
   ;; Babel
   (org-babel-do-load-languages
@@ -450,23 +439,11 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   ;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
   ;;		      :weight 'light))
 
-  ;; for foxglove themes
-  (defun my/org-hide-face ()
-    (set-face-attribute 'org-hide nil
-			:foreground (face-attribute 'shadow :foreground nil t)
-			:weight 'light))
-
-  (add-hook 'org-mode-hook #'my/org-hide-face)
-  (add-hook 'modus-themes-after-load-theme-hook #'my/org-hide-face)
-
   ;; for doric-themes
-  ;; (defun my/org-hide-face ()
-  ;;   (set-face-attribute 'org-hide nil
-  ;;			:foreground (face-attribute 'internal-border :foreground nil t)
-  ;;			:weight 'light))
-
-  ;; (add-hook 'org-mode-hook #'my/org-hide-face)
-  ;; (add-hook 'doric-themes-after-load-theme-hook #'my/org-hide-face)
+  ;; (add-hook 'org-mode-hook
+  ;;	  (lambda ()
+  ;;	    ;; Remap org-hide buffer-locally so it overrides any theme reset
+  ;;	    (face-remap-add-relative 'org-hide :inherit 'internal-border)))
   )
 
 ;; incremental loading
@@ -508,7 +485,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   :config
   ;; Increase preview width
   (plist-put org-latex-preview-appearance-options
-	     :page-width 0.8)
+             :page-width 0.9)
 
   ;; ;; Use dvisvgm to generate previews
   ;; ;; You don't need this, it's the default:
@@ -540,8 +517,8 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
     Create TODOs in review.org linking to Denote notes.
     Use a custom hook: When a TODO with a REVIEW property is marked DONE, it:
-	Deletes the task.
-	Creates a new TODO with an increased review interval.
+        Deletes the task.
+        Creates a new TODO with an increased review interval.
     Add review.org to org-agenda-files so tasks appear in your agenda.
     Use Hyperbole to quickly jump to notes via smart file links.
 This gives you spaced repetition with automatic rescheduling and seamless navigation.
@@ -566,17 +543,17 @@ This is a small code to automatically trim handwritten notes, when adding them.
 
 (defun my/org--unique-file (filename)
   (let* ((base (file-name-base filename))
-	 (ext  (file-name-extension filename))
-	 (ts   (format-time-string "%Y%m%d_%H%M%S")))
+         (ext  (file-name-extension filename))
+         (ts   (format-time-string "%Y%m%d_%H%M%S")))
     (format "%s_%s.%s" base ts ext)))
 
 ;;;; Image handling
 
 (defun my/org-dnd-handle-image (uri)
   (let* ((file (dnd-get-local-file-name uri))
-	 (filename (my/org--unique-file
-		    (file-name-nondirectory file)))
-	 (new-path (expand-file-name filename my/org-image-folder)))
+         (filename (my/org--unique-file
+                    (file-name-nondirectory file)))
+         (new-path (expand-file-name filename my/org-image-folder)))
 
     (my/org--ensure-image-dir)
 
@@ -598,8 +575,8 @@ This is a small code to automatically trim handwritten notes, when adding them.
 
 (defun my/org-dnd-image-menu (uri)
   (pcase (read-char-choice
-	  "[c] clean+insert  [i] insert raw  [o] org default: "
-	  '(?c ?i ?o))
+          "[c] clean+insert  [i] insert raw  [o] org default: "
+          '(?c ?i ?o))
     (?c (my/org-dnd-handle-image uri) t)
     (?i (my/org-dnd-insert-raw uri) t)
     (?o nil))) ;; fallback
@@ -613,37 +590,37 @@ This is a small code to automatically trim handwritten notes, when adding them.
   (setq my/dnd-already-handled nil)
 
   (let* ((window (nth 0 args))
-	 (urls   (nth 1 args)))
+         (urls   (nth 1 args)))
     (with-current-buffer (window-buffer window)
       (if (and (derived-mode-p 'org-mode)
-	       (= (length urls) 1))
-	  (let* ((uri  (car urls))
-		 (file (dnd-get-local-file-name uri)))
-	    (if (and file (my/is-image-file file))
-		(let ((handled (my/org-dnd-image-menu uri)))
-		  (if handled
-		      (setq my/dnd-already-handled t)
-		    (apply orig args)))
-	      (apply orig args)))
-	(apply orig args)))))
+               (= (length urls) 1))
+          (let* ((uri  (car urls))
+                 (file (dnd-get-local-file-name uri)))
+            (if (and file (my/is-image-file file))
+                (let ((handled (my/org-dnd-image-menu uri)))
+                  (if handled
+                      (setq my/dnd-already-handled t)
+                    (apply orig args)))
+              (apply orig args)))
+        (apply orig args)))))
 
 ;;;; Block Org fallback ONLY when handled
 
 (defun my/org-dnd-block-fallback (orig &rest args)
   (if my/dnd-already-handled
       (progn
-	(setq my/dnd-already-handled nil)
-	nil) ;; block Org handler
+        (setq my/dnd-already-handled nil)
+        nil) ;; block Org handler
     (apply orig args)))
 
 ;;;; Install
 
 (advice-add 'dnd-handle-multiple-urls :around
-	    #'my/dnd-handle-multiple-urls)
+            #'my/dnd-handle-multiple-urls)
 
 (with-eval-after-load 'org
   (advice-add 'org--dnd-local-file-handler :around
-	      #'my/org-dnd-block-fallback))
+              #'my/org-dnd-block-fallback))
 #+end_src
 
 *** org-source-code programming support
@@ -733,7 +710,7 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 (defmacro my/leader-set (key cmd label)
   `(progn
      ,(when cmd
-	`(define-key leader-map (kbd ,key) ,cmd))
+        `(define-key leader-map (kbd ,key) ,cmd))
      (which-key-add-key-based-replacements
        (concat "<f13> " ,key) ,label)))
 
@@ -808,9 +785,9 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 *** Garbage collection reset and threshold increase and file handler reset
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (add-hook 'emacs-startup-hook
-	  (lambda ()
-	    (setq gc-cons-threshold (* 100 1024 1024)
-		  gc-cons-percentage 0.1)))
+          (lambda ()
+            (setq gc-cons-threshold (* 100 1024 1024)
+                  gc-cons-percentage 0.1)))
 #+end_src
 
 *** Benchmarking Tools
@@ -842,35 +819,101 @@ This makes sure the frame is made visible after dashboard is open.
   :ensure nil
   :init
   (setq echo-keystrokes-help nil) ;;make echo area a little cleaner
-  (setq suggest-key-bindings 0) ;; if set to nil, keybinds won't show in completions. with 0 they are not shown in echo area just printed in messages.
+
+  ;; if set to nil, keybinds won't show in completions.
+  ;;with 0 they are not shown in echo area just printed in messages.
+  (setq suggest-key-bindings 0)
+
   :config
   (advice-add
    'execute-extended-command--describe-binding-msg
    :override
    (lambda (&rest _args) nil)))
 
-(setq switch-to-prev-buffer-skip 'this) ;; don't switch to buffer currently shown in frame.
-;; don't switch to internal buffers (using popper.el seems like a better case but lets try this)
+;; don't switch to buffer currently shown in frame.
+(setq switch-to-prev-buffer-skip 'this)
+
+;; don't switch to internal buffers (using popper.el seems like a better
+;; case but lets try this)
 (setq switch-to-prev-buffer-skip-regexp
       (regexp-opt
        '("*Help*"
-	 "*Messages*"
-	 "*Warnings*"
-	 "*Async Shell Command*"
-	 "*Compile-Log*"
-	 "*Native-compile-Log*"
-	 "*Completions*"
-	 "*shell-command-Output*"
-	 "*Backtrace*")
+         "*Messages*"
+         "*Warnings*"
+         "*Async Shell Command*"
+         "*Compile-Log*"
+         "*Native-compile-Log*"
+         "*Completions*"
+         "*shell-command-Output*"
+         "*org preview convert output*"
+         "*org preview latex output*"
+         "*Async-nativ-compile-log*"
+         "*Backtrace*")
        'symbols))
 
 ;; make emacs input automatic line breaks.
 (setq-default fill-column 80)
-;; (add-hook 'text-mode-hook #'auto-fill-mode)
+(add-hook 'text-mode-hook #'auto-fill-mode)
+
+;; refill mode misbehaves in code blocks.
+;; (add-hook 'text-mode-hook #'refill-mode)
 
 ;; lock *scratch* buffer so that its not killed accidentaly
 (with-current-buffer "*scratch*"
   (emacs-lock-mode 'kill))
+#+end_src
+
+** Avy
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package avy
+  :ensure t
+  :commands (avy-goto-word-1 avy-goto-char-2 avy-goto-char-timer)
+  :config
+  (setq avy-timeout-seconds 0.27)
+  (setq avy-keys '( ?f ?d ?s ?a ?g ?q ?e ?r
+                    ?c ?v ?p ?. ?, ;; ?2 ?3 ?9 ?8
+                    ?u ?/ ?b ?n ?i ?o ?' ?l ?j))
+  (setq avy-single-candidate-jump nil)
+  (setq avy-dispatch-alist '((?m . avy-action-mark)
+                             (?$ . avy-action-ispell)
+                             (?z . avy-action-zap-to-char)
+                             (?  . avy-action-embark)
+                             (?= . avy-action-define)
+                             (23 . avy-action-zap-to-char)
+                             (67108896 . avy-action-mark-to-char)
+                             (?h . avy-action-helpful)
+                             (?x . avy-action-exchange)
+
+                             (11 . avy-action-kill-line)
+                             (25 . avy-action-yank-line)
+
+                             (?w . avy-action-easy-kill)
+                             (?k . avy-action-kill-stay)
+                             (?y . avy-action-yank)
+                             (?t . avy-action-teleport)
+
+                             (?W . avy-action-copy-whole-line)
+                             (?K . avy-action-kill-whole-line)
+                             (?Y . avy-action-yank-whole-line)
+                             (?T . avy-action-teleport-whole-line)
+                             (?\; . avy-action-add-cursor)))
+
+  :bind (("C-M-'"   . avy-resume)
+         ("M-j"     . avy-goto-char-timer)
+         ("M-s y"   . avy-copy-line)
+         ("M-s M-y" . avy-copy-region)
+         ("M-s M-k" . avy-kill-whole-line)
+         ("M-s j"   . avy-goto-char-2)
+         ("M-s M-p" . avy-goto-line-above)
+         ("M-s M-n" . avy-goto-line-below)
+         ("M-s M-l" . avy-goto-end-of-line)
+         ("M-s C-w" . avy-kill-region)
+         ("M-s M-w" . avy-kill-ring-save-region)
+         ("M-s t"   . avy-move-line)
+         ("M-s M-t" . avy-move-region)
+         :map isearch-mode-map
+         ("C-'"     . avy-isearch)
+         ("M-j"     . avy-isearch)))
 #+end_src
 
 ** Break Mode
@@ -904,13 +947,13 @@ This makes sure the frame is made visible after dashboard is open.
   ;; Adjust margins if the mode is on
   (when emacs-solo/center-document-mode
     (let ((margin-width (max 0
-			     (truncate
-			      (/ (- (window-width)
-				    emacs-solo-center-document-desired-width)
-				 2.0)))))
+                             (truncate
+                              (/ (- (window-width)
+                                    emacs-solo-center-document-desired-width)
+                                 2.0)))))
       (when (> margin-width 0)
-	(set-window-parameter nil 'min-margins '(0 . 0))
-	(set-window-margins nil margin-width margin-width)))))
+        (set-window-parameter nil 'min-margins '(0 . 0))
+        (set-window-margins nil margin-width margin-width)))))
 
 (define-minor-mode emacs-solo/center-document-mode
   "Toggle centered text layout in the current buffer."
@@ -928,7 +971,7 @@ This makes sure the frame is made visible after dashboard is open.
   :ensure t
   :commands (gptel gptel-add gptel-rewrite gptel-agent gptel-org-set-topic)
   :vc ( :url "https://github.com/karthink/gptel"
-	:rev :newest)
+        :rev :newest)
   :custom-face
   (gptel-context-highlight-face ((t (:background unspecified :inherit highlight))))
   :config
@@ -951,159 +994,159 @@ The value is a list of symbols. Supported fragments are:
 
 The order in this list controls the display order."
     :type '(repeat (choice (const usage)
-			   (const tools)
-			   (const track-media)
-			   (const context)
-			   (const system)
-			   (const model)
-			   (const preset))
-		   :group 'gptel))
+                           (const tools)
+                           (const track-media)
+                           (const context)
+                           (const system)
+                           (const model)
+                           (const preset))
+                   :group 'gptel))
 
   (defun gptel--header-line-fragment-usage ()
     (and-let* ((idx (car-safe gptel--token-usage-strings))
-	       (entry (or (nth (1+ idx) gptel--token-usage-strings)
-			  "[usage...]"))
-	       (noinfo "[No info]")
-	       (toggle-usage
-		(lambda (strings) (interactive)
-		  (and (car-safe strings)
-		       (cl-callf (lambda (pos) (% (1+ pos) 2)) (car strings))))))
+               (entry (or (nth (1+ idx) gptel--token-usage-strings)
+                          "[usage...]"))
+               (noinfo "[No info]")
+               (toggle-usage
+                (lambda (strings) (interactive)
+                  (and (car-safe strings)
+                       (cl-callf (lambda (pos) (% (1+ pos) 2)) (car strings))))))
       (buttonize entry toggle-usage gptel--token-usage-strings
-		 (concat "Token usage (C = cached tokens)\nLast request: "
-			 (or (cadr gptel--token-usage-strings) noinfo)
-			 "\nThis buffer:  "
-			 (or (caddr gptel--token-usage-strings) noinfo)))))
+                 (concat "Token usage (C = cached tokens)\nLast request: "
+                         (or (cadr gptel--token-usage-strings) noinfo)
+                         "\nThis buffer:  "
+                         (or (caddr gptel--token-usage-strings) noinfo)))))
 
   (defun gptel--header-line-fragment-tools ()
     (when (and gptel-use-tools gptel-tools)
       (propertize
        (buttonize (pcase (length gptel-tools)
-		    (0 "[No tools]") (1 "[1 tool]")
-		    (len (format "[%d tools]" len)))
-		  (lambda (&rest _)
-		    (interactive)
-		    (run-at-time 0 nil
-				 (lambda () (call-interactively #'gptel-tools)))))
+                    (0 "[No tools]") (1 "[1 tool]")
+                    (len (format "[%d tools]" len)))
+                  (lambda (&rest _)
+                    (interactive)
+                    (run-at-time 0 nil
+                                 (lambda () (call-interactively #'gptel-tools)))))
        'mouse-face 'highlight
        'help-echo "Select tools")))
 
   (defun gptel--header-line-fragment-track-media ()
     (when (gptel--model-capable-p 'media)
       (let ((toggle-track-media
-	     (lambda (&rest _)
-	       (setq-local gptel-track-media (not gptel-track-media))
-	       (if gptel-track-media
-		   (progn
-		     (run-hooks 'gptel-refresh-buffer-hook)
-		     (message "Sending media from included links."))
-		 (without-restriction (gptel--annotate-link-clear))
-		 (message "Ignoring links.  Only link text will be sent."))
-	       (run-at-time 0 nil #'force-mode-line-update))))
-	(if gptel-track-media
-	    (propertize
-	     (buttonize "[Media: Send]" toggle-track-media)
-	     'mouse-face 'highlight
-	     'help-echo "Sending media from links/urls when supported.\nClick to toggle")
-	  (propertize
-	   (buttonize "[Media: No]" toggle-track-media)
-	   'mouse-face 'highlight
-	   'help-echo "Ignoring media from links/urls.\nClick to toggle")))))
+             (lambda (&rest _)
+               (setq-local gptel-track-media (not gptel-track-media))
+               (if gptel-track-media
+                   (progn
+                     (run-hooks 'gptel-refresh-buffer-hook)
+                     (message "Sending media from included links."))
+                 (without-restriction (gptel--annotate-link-clear))
+                 (message "Ignoring links.  Only link text will be sent."))
+               (run-at-time 0 nil #'force-mode-line-update))))
+        (if gptel-track-media
+            (propertize
+             (buttonize "[Media: Send]" toggle-track-media)
+             'mouse-face 'highlight
+             'help-echo "Sending media from links/urls when supported.\nClick to toggle")
+          (propertize
+           (buttonize "[Media: No]" toggle-track-media)
+           'mouse-face 'highlight
+           'help-echo "Ignoring media from links/urls.\nClick to toggle")))))
 
   (defun gptel--header-line-fragment-context ()
     (and gptel-context
-	 (cl-loop
-	  for entry in gptel-context
-	  if (bufferp (or (car-safe entry) entry)) count it into bufs
-	  else count (stringp (or (car-safe entry) entry)) into files
-	  finally return
-	  (propertize
-	   (buttonize
-	    (concat "[" (and (> bufs 0) (format "%d buf" bufs))
-		    (and (> bufs 1) "s")
-		    (and (> bufs 0) (> files 0) ", ")
-		    (and (> files 0) (format "%d file" files))
-		    (and (> files 1) "s") "]")
-	    (lambda (&rest _)
-	      (require 'gptel-context)
-	      (gptel-context--buffer-setup)))
-	   'mouse-face 'highlight
-	   'help-echo "Active gptel context"))))
+         (cl-loop
+          for entry in gptel-context
+          if (bufferp (or (car-safe entry) entry)) count it into bufs
+          else count (stringp (or (car-safe entry) entry)) into files
+          finally return
+          (propertize
+           (buttonize
+            (concat "[" (and (> bufs 0) (format "%d buf" bufs))
+                    (and (> bufs 1) "s")
+                    (and (> bufs 0) (> files 0) ", ")
+                    (and (> files 0) (format "%d file" files))
+                    (and (> files 1) "s") "]")
+            (lambda (&rest _)
+              (require 'gptel-context)
+              (gptel-context--buffer-setup)))
+           'mouse-face 'highlight
+           'help-echo "Active gptel context"))))
 
   (defun gptel--header-line-fragment-system ()
     (let ((system
-	   (propertize
-	    (buttonize
-	     (format "[Prompt: %s]"
-		     (or (car-safe (rassoc gptel-system-prompt gptel-directives))
-			 (gptel--describe-directive gptel-system-prompt 15)))
-	     (lambda (&rest _) (gptel-system-prompt)))
-	    'mouse-face 'highlight
-	    'help-echo "System message for session")))
+           (propertize
+            (buttonize
+             (format "[Prompt: %s]"
+                     (or (car-safe (rassoc gptel-system-prompt gptel-directives))
+                         (gptel--describe-directive gptel-system-prompt 15)))
+             (lambda (&rest _) (gptel-system-prompt)))
+            'mouse-face 'highlight
+            'help-echo "System message for session")))
       system))
 
   (defun gptel--header-line-fragment-model ()
     (propertize
      (buttonize (concat "[" (gptel--model-name gptel-model) "]")
-		(lambda (&rest _) (gptel-menu)))
+                (lambda (&rest _) (gptel-menu)))
      'mouse-face 'highlight
      'help-echo "Model in use"))
 
   (defun gptel--header-line-fragment-preset ()
     (let ((preset
-	   (or (and (boundp 'gptel--preset)
-		    gptel--preset
-		    (if (symbolp gptel--preset)
-			(symbol-name gptel--preset)
-		      (format "%s" gptel--preset)))
-	       "[No preset]")))
+           (or (and (boundp 'gptel--preset)
+                    gptel--preset
+                    (if (symbolp gptel--preset)
+                        (symbol-name gptel--preset)
+                      (format "%s" gptel--preset)))
+               "[No preset]")))
       (propertize
        (buttonize (format "[Preset: %s]" preset)
-		  (lambda (&rest _)
-		    (interactive)
-		    (call-interactively #'gptel-preset)))
+                  (lambda (&rest _)
+                    (interactive)
+                    (call-interactively #'gptel-preset)))
        'mouse-face 'highlight
        'help-echo "Current preset. Click to change")))
 
   (defun gptel--header-line-info ()
     "Build the gptel header-line info from `gptel-header-line-fragments'."
     (let* ((parts
-	    (delq nil
-		  (mapcar
-		   (lambda (frag)
-		     (pcase frag
-		       ('usage (gptel--header-line-fragment-usage))
-		       ('tools (gptel--header-line-fragment-tools))
-		       ('track-media (gptel--header-line-fragment-track-media))
-		       ('context (gptel--header-line-fragment-context))
-		       ('system (gptel--header-line-fragment-system))
-		       ('model (gptel--header-line-fragment-model))
-		       ('preset (gptel--header-line-fragment-preset))
-		       (_ nil)))
-		   gptel-header-line-fragments)))
-	   (rhs (mapconcat #'identity parts " ")))
+            (delq nil
+                  (mapcar
+                   (lambda (frag)
+                     (pcase frag
+                       ('usage (gptel--header-line-fragment-usage))
+                       ('tools (gptel--header-line-fragment-tools))
+                       ('track-media (gptel--header-line-fragment-track-media))
+                       ('context (gptel--header-line-fragment-context))
+                       ('system (gptel--header-line-fragment-system))
+                       ('model (gptel--header-line-fragment-model))
+                       ('preset (gptel--header-line-fragment-preset))
+                       (_ nil)))
+                   gptel-header-line-fragments)))
+           (rhs (mapconcat #'identity parts " ")))
       (concat
        (propertize
-	" " 'display
-	(if (and (fboundp 'string-pixel-width)
-		 (display-graphic-p))
-	    `(space :align-to (- right (,(string-pixel-width rhs))))
-	  `(space :align-to (- right ,(+ 5 (string-width rhs))))))
+        " " 'display
+        (if (and (fboundp 'string-pixel-width)
+                 (display-graphic-p))
+            `(space :align-to (- right (,(string-pixel-width rhs))))
+          `(space :align-to (- right ,(+ 5 (string-width rhs))))))
        rhs)))
 
   (defun gptel-use-header-line ()
     "Set up the header-line for a gptel buffer."
     (setq header-line-format
-	  (list '(:eval (concat (propertize " " 'display '(space :align-to 0))
-				(format "%s" (gptel-backend-name gptel-backend))))
-		(propertize " Ready" 'face 'success)
-		'(:eval (gptel--header-line-info)))))
+          (list '(:eval (concat (propertize " " 'display '(space :align-to 0))
+                                (format "%s" (gptel-backend-name gptel-backend))))
+                (propertize " Ready" 'face 'success)
+                '(:eval (gptel--header-line-info)))))
 
   (setq gptel-header-line-fragments '(usage context track-media))
   (setq gptel-model 'gpt-5.4-mini)
   (setq gptel-include-tool-results nil)
   (setq gptel-highlight-methods '(face))
   (setq gptel-display-buffer-action
-	'((display-buffer-same-window)))
+        '((display-buffer-same-window)))
   (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "* Prompt: \n")
   (setf (alist-get 'org-mode gptel-response-prefix-alist) "*Response:* \n")
 
@@ -1120,7 +1163,7 @@ The order in this list controls the display order."
   :ensure t
   :after gptel
   :vc ( :url "https://github.com/karthink/gptel-agent"
-	:rev :newest)
+        :rev :newest)
   :config
   (gptel-agent-update)   ;Read files from agents directories
   ;; A preset for general purpose gpt
@@ -1194,30 +1237,30 @@ The order in this list controls the display order."
   "Set `my/gptel-backend' if it is not already set."
   (unless my/gptel-backend
     (setq my/gptel-backend
-	  (gptel-make-openai "ChatGPT"
-	    :key 'gptel-api-key
-	    :stream t))))
+          (gptel-make-openai "ChatGPT"
+            :key 'gptel-api-key
+            :stream t))))
 
 ;; creating your own gptel buffer with custom preset
 (defun my/gptel-prepare-buffer (preset &optional name)
   "Start or switch to a GPTel buffer and apply PRESET."
   (interactive
    (list (intern (read-string "Preset: "))
-	 (let ((s (read-string "Buffer name (optional): ")))
-	   (unless (string-empty-p s)
-	     (intern s)))))
+         (let ((s (read-string "Buffer name (optional): ")))
+           (unless (string-empty-p s)
+             (intern s)))))
   (require 'gptel)
   (require 'gptel-agent)
   (my/ensure-gptel-backend)
   (let ((buffer (get-buffer-create (format "*gptel-%s*" (or name preset)))))
     (with-current-buffer buffer
       (unless (derived-mode-p 'org-mode)
-	(org-mode))
+        (org-mode))
       (unless gptel-mode
-	(gptel-mode))
+        (gptel-mode))
       (when (and (not (equal name 'ask))
-		 (= (buffer-size) 0))
-	(insert "* prompt:\n"))
+                 (= (buffer-size) 0))
+        (insert "* prompt:\n"))
       (setq-local gptel-backend my/gptel-backend)
       (gptel--apply-preset preset #'my-local-setter))
     (pop-to-buffer buffer)
@@ -1231,23 +1274,23 @@ The order in this list controls the display order."
   (require 'gptel-agent)
   (my/ensure-gptel-backend)
   (let* ((prompt
-	  (read-string
-	   "Ask GPT: "
-	   (and (use-region-p)
-		(buffer-substring-no-properties
-		 (region-beginning) (region-end)))))
-	 (ask-buffer (my/gptel-prepare-buffer 'egpt 'ask)))
+          (read-string
+           "Ask GPT: "
+           (and (use-region-p)
+                (buffer-substring-no-properties
+                 (region-beginning) (region-end)))))
+         (ask-buffer (my/gptel-prepare-buffer 'egpt 'ask)))
     (when (buffer-live-p ask-buffer)
       (with-current-buffer ask-buffer
-	(setq-local gptel-org-branching-context t)
-	(setq-local gptel-prompt-prefix-alist
-		    (copy-tree gptel-prompt-prefix-alist))
-	(setf (alist-get 'org-mode gptel-prompt-prefix-alist) "*Prompt:* \n")
-	(org-overview)
-	(goto-char (point-max))
-	(insert "\n* Prompt: ")
-	(goto-char (point-max))
-	(insert prompt)))
+        (setq-local gptel-org-branching-context t)
+        (setq-local gptel-prompt-prefix-alist
+                    (copy-tree gptel-prompt-prefix-alist))
+        (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "*Prompt:* \n")
+        (org-overview)
+        (goto-char (point-max))
+        (insert "\n* Prompt: ")
+        (goto-char (point-max))
+        (insert prompt)))
     (gptel-request prompt
       :buffer ask-buffer
       :position (with-current-buffer ask-buffer (point-max))
@@ -1264,12 +1307,12 @@ The order in this list controls the display order."
     (unless win
       (setq win (selected-window))
       (with-selected-window win
-	(delete-other-windows)
-	(set-window-buffer win buffer)))
+        (delete-other-windows)
+        (set-window-buffer win buffer)))
     win))
 
 (add-to-list 'display-buffer-alist
-	     '("\\*gptel-.*\\*" . ((my/gptel-display-full-window))))
+             '("\\*gptel-.*\\*" . ((my/gptel-display-full-window))))
 
 ;; karthink's reddit post presets, check later if we can append presets.
 ;; also look at these posts
@@ -1327,9 +1370,9 @@ The order in this list controls the display order."
   (global-corfu-mode 1) ;; needed by supertag
   :bind
   (:map corfu-map
-	("RET" . corfu-send)    ; RET for selection
-	("C-n" . corfu-next)      ; Move down the completions list
-	("C-p" . corfu-previous))) ; Move up the completions list
+        ("RET" . corfu-send)    ; RET for selection
+        ("C-n" . corfu-next)      ; Move down the completions list
+        ("C-p" . corfu-previous))) ; Move up the completions list
 
 
 (global-completion-preview-mode 1) ;; enables ghost text completion.
@@ -1364,8 +1407,8 @@ The order in this list controls the display order."
 ;;   Packages     : %s
 ;;
 "
-	   (emacs-init-time)
-	   (number-to-string (length package-activated-list)))))
+           (emacs-init-time)
+           (number-to-string (length package-activated-list)))))
 
 ;; (with-current-buffer (get-buffer-create "*scratch*")
 ;;   (insert
@@ -1396,17 +1439,17 @@ The order in this list controls the display order."
   :ensure t
   :hook (dired-mode . denote-dired-mode)
   :bind (("C-c n n" . denote)
-	 ("C-c n r" . denote-rename-file)
-	 ("C-c n l" . denote-link)
-	 ("C-c n b" . denote-backlinks)
-	 ("C-c n d" . denote-dired)
-	 ("C-c n g" . denote-grep))
+         ("C-c n r" . denote-rename-file)
+         ("C-c n l" . denote-link)
+         ("C-c n b" . denote-backlinks)
+         ("C-c n d" . denote-dired)
+         ("C-c n g" . denote-grep))
   :config
 (setq denote-directory "~/notes/")
   (denote-rename-buffer-mode 1)
   (setq denote-dired-directories-include-subdirectories t)
   (setq denote-org-front-matter
-	"#+title: %s
+        "#+title: %s
 ,#+date: %s
 ,#+filetags: %s
 ,#+identifier: %s
@@ -1471,7 +1514,7 @@ The order in this list controls the display order."
   :ensure nil
   :hook ((dired-mode . dired-hide-details-mode))
   :bind (:map dired-mode-map
-	      ("C-`" . (lambda () (interactive) (dired-hide-details-mode 'toggle))))
+              ("C-`" . (lambda () (interactive) (dired-hide-details-mode 'toggle))))
   :config
   ;; removes multiple buffers of dired
   (setq dired-kill-when-opening-new-dired-buffer t)
@@ -1529,11 +1572,11 @@ Eglot (built-in client for the language server protocol)
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq treesit-language-source-alist
       '((bash "https://github.com/tree-sitter/tree-sitter-bash" "v0.20.1")
-	(css "https://github.com/tree-sitter/tree-sitter-css" "v0.20.0")
-	(elisp "https://github.com/Wilfred/tree-sitter-elisp")
-	(html "https://github.com/tree-sitter/tree-sitter-html" "v0.20.1")
-	(markdown "https://github.com/ikatyang/tree-sitter-markdown")
-	(python "https://github.com/tree-sitter/tree-sitter-python" "v0.25.0")))
+        (css "https://github.com/tree-sitter/tree-sitter-css" "v0.20.0")
+        (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+        (html "https://github.com/tree-sitter/tree-sitter-html" "v0.20.1")
+        (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+        (python "https://github.com/tree-sitter/tree-sitter-python" "v0.25.0")))
 
 (use-package bash-ts-mode
   :ensure nil
@@ -1570,9 +1613,9 @@ Eglot (built-in client for the language server protocol)
 
 ;; The following prevents <> from auto-pairing when electric-pair-mode is on.(useful for org tempo)
 (add-hook 'org-mode-hook (lambda ()
-			   (setq-local electric-pair-inhibit-predicate
-				       `(lambda (c)
-					  (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+                           (setq-local electric-pair-inhibit-predicate
+                                       `(lambda (c)
+                                          (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
 #+end_src
 
 ** Elfeed
@@ -1582,12 +1625,12 @@ Eglot (built-in client for the language server protocol)
   :defer t
   :commands (elfeed elfeed-update)
   :bind (("C-c r" . elfeed)
-	 :map elfeed-search-mode-map
-	 ("n" . elfeed-next-entry)
-	 ("q" . kill-current-buffer)
-	 ("p" . elfeed-previous-entry)
-	 :map elfeed-show-mode-map
-	 ("q" . kill-current-buffer))
+         :map elfeed-search-mode-map
+         ("n" . elfeed-next-entry)
+         ("q" . kill-current-buffer)
+         ("p" . elfeed-previous-entry)
+         :map elfeed-show-mode-map
+         ("q" . kill-current-buffer))
 
   :hook
   (elfeed-search-mode . elfeed-update) ;; Updates elfeed whenever elfeed is started.
@@ -1598,36 +1641,25 @@ Eglot (built-in client for the language server protocol)
 
   :init
   (setq elfeed-enclosure-default-dir "~/Downloads/"
-	elfeed-show-entry-switch 'switch-to-buffer
-	elfeed-search-filter "@2-weeks-ago +unread"
-	elfeed-search-title-max-width 70
-	elfeed-search-title-min-width 30
-	elfeed-search-trailing-width 25
-	elfeed-show-unique-buffers nil
-	elfeed-search-date-format '("%d-%m" 6 :left))
+        elfeed-show-entry-switch 'switch-to-buffer
+        elfeed-search-filter "@2-weeks-ago +unread"
+        elfeed-search-title-max-width 70
+        elfeed-search-title-min-width 30
+        elfeed-search-trailing-width 25
+        elfeed-show-unique-buffers nil
+        elfeed-search-date-format '("%d-%m" 6 :left))
 
   :config
   (which-key-add-key-based-replacements "C-c r" "RSS")
   (setq elfeed-feeds
-	'(("https://b2b.economictimes.indiatimes.com/rss/recentstories"
-	   :title " ET Recent" news)
-	  ("https://www.thehindu.com/news/international/feeder/default.rss"
-	   :title " Hindu World" news)
-	  ("https://www.thehindu.com/business/Economy/feeder/default.rss"
-	   :title " Hindu Economy" news)
-	  ("https://www.thehindu.com/business/markets/feeder/default.rss"
-	   :title " Hindu Markets" news)
-	  ("https://cfo.economictimes.indiatimes.com/rss/topstories"
-	   :title " ET CFO top" news)
-	  ("https://cfo.economictimes.indiatimes.com/rss/economy"
-	   :title " ET economy" news)
-	  ("https://rbi.org.in/pressreleases_rss.xml"
-	   :title " RBI PR" news)
-	  ("https://rbi.org.in/notifications_rss.xml"
-	   :title " RBI notif" news)
-	  ("https://www.business-standard.com/rss/todays-paper.rss"
-	   :title " Business Standard" news)
-	   ))
+        '(
+          ("https://rbi.org.in/pressreleases_rss.xml"
+           :title " RBI PR" news)
+          ("https://rbi.org.in/notifications_rss.xml"
+           :title " RBI notif" news)
+          ("https://www.business-standard.com/rss/todays-paper.rss"
+           :title " BS Today's Paper" news)
+          ))
 
   ;; ;; advice to remove the feed column
   ;; (advice-add 'elfeed-search-print-entry--default :override
@@ -1707,13 +1739,13 @@ downloaded hunspell
   (setq ispell-local-dictionary "en_US")
   (setq ispell-extra-args '("-d" "en_US"))
   (setq ispell-local-dictionary-alist
-	'(("en_US" "[A-Za-z]" "[^A-Za-z]" "[']" nil nil nil utf-8)))
+        '(("en_US" "[A-Za-z]" "[^A-Za-z]" "[']" nil nil nil utf-8)))
   (setq ispell-hunspell-dictionary-alist
-	'(("en_US"
-	   "~/hunspell/en_US.aff"
-	   "~/hunspell/en_US.dic"
-	   "~/hunspell/.hunspell_en_US"
-	   nil nil nil "utf-8"))))
+        '(("en_US"
+           "~/hunspell/en_US.aff"
+           "~/hunspell/en_US.dic"
+           "~/hunspell/.hunspell_en_US"
+           nil nil nil "utf-8"))))
 
 (use-package flyspell
   :ensure nil
@@ -1729,19 +1761,19 @@ downloaded hunspell
 ** Font
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (set-face-attribute 'default nil
-		    :family user-fixed-pitch-font
-		    :height (* user-font-size 10)
-		    :weight 'medium)
+                    :family user-fixed-pitch-font
+                    :height (* user-font-size 10)
+                    :weight 'medium)
 
 (set-face-attribute 'variable-pitch nil
-		    :family user-variable-pitch-font
-		    :height (* user-font-size 10)
-		    :weight 'medium)
+                    :family user-variable-pitch-font
+                    :height (* user-font-size 10)
+                    :weight 'medium)
 
 (set-face-attribute 'fixed-pitch nil
-		    :family user-fixed-pitch-font
-		    :height (* user-font-size 10)
-		    :weight 'medium)
+                    :family user-fixed-pitch-font
+                    :height (* user-font-size 10)
+                    :weight 'medium)
 
 ;; fallback if some unicode symbols are missing.
 (set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols") nil 'append)
@@ -1753,9 +1785,9 @@ downloaded hunspell
 ;; This is working in emacsclient but not emacs.
 ;; Your font must have an italic face available.
 (set-face-attribute 'font-lock-comment-face nil
-		    :slant 'italic)
+                    :slant 'italic)
 (set-face-attribute 'font-lock-keyword-face nil
-		    :slant 'italic)
+                    :slant 'italic)
 
 ;; This sets the default font on all graphical frames created after restarting Emacs.
 ;; Does the same thing as 'set-face-attribute default' above, but emacsclient fonts
@@ -1780,12 +1812,12 @@ setenv makes it so that sub processes can also see the path.
     (setenv "PATH" (concat dir path-separator (getenv "PATH")))))
 
 (dolist (dir '("C:/Users/PRATIK/scoop/apps/mpv/0.41.0"
-	       "C:/Users/PRATIK/scoop/shims"
-	       "C:/Program Files/Git/usr/bin"
-	       "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
-	       "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"
-	       "C:/msys64/ucrt64/bin"
-	       ))
+               "C:/Users/PRATIK/scoop/shims"
+               "C:/Program Files/Git/usr/bin"
+               "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
+               "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"
+               "C:/msys64/ucrt64/bin"
+               ))
   (my/add-to-path dir))
 #+end_src
 
@@ -1814,10 +1846,10 @@ from karthink https://karthinks.com/software/even-more-batteries-included-with-e
     "Highlight all changes until the buffer is saved."
     :lighter " H"
     (if highlight-until-save-mode
-	(progn
-	  (highlight-changes-mode 1)
-	  (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
-	  (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t))
+        (progn
+          (highlight-changes-mode 1)
+          (add-hook 'after-save-hook #'highlight-changes-mode-turn-on nil t)
+          (add-hook 'before-save-hook #'highlight-changes-mode-turn-off nil t))
       (highlight-changes-mode -1)
       (remove-hook 'after-save-hook #'highlight-changes-mode-turn-on t)
       (remove-hook 'before-save-hook #'highlight-changes-mode-turn-off t))))
@@ -1872,23 +1904,23 @@ This is the current modeline setup slowly build it up using the funcitons in pra
   (setq display-time-default-load-average nil) ;; remove the load average. i don't need it.
   (display-time-mode 1) ;; displays time in modeline
   (setq-default mode-line-format
-	'("%e" mode-line-front-space
-	  (:propertize
-	   ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote mode-line-window-dedicated) display (min-width (3.0)))
-	  mode-line-frame-identification
-	  " "
-	  pratik-modeline-buffer-identification
-	  " "
-	  pratik-modeline-major-mode
-	  pratik-modeline-process
-	  " "
-	  (project-mode-line project-mode-line-format)
-	  (vc-mode vc-mode)
-	  " "
-	  mode-line-format-right-align
-	  pratik-modeline-misc-info
-	  mode-line-end-spaces
-	  " ")))
+        '("%e" mode-line-front-space
+          (:propertize
+           ("" mode-line-mule-info mode-line-client mode-line-modified mode-line-remote mode-line-window-dedicated) display (min-width (3.0)))
+          mode-line-frame-identification
+          " "
+          pratik-modeline-buffer-identification
+          " "
+          pratik-modeline-major-mode
+          pratik-modeline-process
+          " "
+          (project-mode-line project-mode-line-format)
+          (vc-mode vc-mode)
+          " "
+          mode-line-format-right-align
+          pratik-modeline-misc-info
+          mode-line-end-spaces
+          " ")))
 #+end_src
 
 ** org-node
@@ -1960,18 +1992,18 @@ Emacs reader, works really well
   :ensure t
   :vc (:url "https://codeberg.org/MonadicSheep/emacs-reader")
   :mode (("\\.pdf\\'" . reader-mode)
-	 ("\\.epub\\'" . reader-mode)
-	 ("\\.mobi\\'" . reader-mode)
-	 ("\\.fb2\\'" . reader-mode)
-	 ("\\.xps\\'" . reader-mode)
-	 ("\\.cbz\\'" . reader-mode)
-	 ("\\.odt\\'" . reader-mode)
-	 ("\\.ods\\'" . reader-mode)
-	 ("\\.odp\\'" . reader-mode)
-	 ("\\.odg\\'" . reader-mode)
-	 ("\\.docx\\'" . reader-mode)
-	 ("\\.pptx\\'" . reader-mode)
-	 ("\\.xlsx\\'" . reader-mode))
+         ("\\.epub\\'" . reader-mode)
+         ("\\.mobi\\'" . reader-mode)
+         ("\\.fb2\\'" . reader-mode)
+         ("\\.xps\\'" . reader-mode)
+         ("\\.cbz\\'" . reader-mode)
+         ("\\.odt\\'" . reader-mode)
+         ("\\.ods\\'" . reader-mode)
+         ("\\.odp\\'" . reader-mode)
+         ("\\.odg\\'" . reader-mode)
+         ("\\.docx\\'" . reader-mode)
+         ("\\.pptx\\'" . reader-mode)
+         ("\\.xlsx\\'" . reader-mode))
   :config
   ;; auto makes the images blurry
   (setopt image-scaling-factor 1.0))
@@ -1982,7 +2014,7 @@ Emacs reader, works really well
 (use-package ready-player
   :ensure t
   :vc (:url "https://github.com/xenodium/ready-player"
-	    :rev :newest)
+            :rev :newest)
   :config
   (setq ready-player-ask-for-project-sustainability nil)
   (setq ready-player-hide-modeline nil)
@@ -2051,52 +2083,64 @@ for html viewing defaults, used in elfeed aswell.
   ;; (run-at-time "05:00" 86400
   ;;	       (lambda ()
   ;;		 (load-theme 'modus-operandi)))
-  (modus-themes-include-derivatives-mode 1) ;; without this on ef-themes or any derivates don't work.
+
+  ;; without this on ef-themes or any derivates don't work.
+  (modus-themes-include-derivatives-mode 1)
+
   :config
   (setq modus-themes-to-toggle '(modus-operandi modus-vivendi)
-	modus-themes-to-rotate modus-themes-items
-	modus-themes-mixed-fonts t
-	modus-themes-variable-pitch-ui t
-	modus-themes-italic-constructs t
-	modus-themes-bold-constructs t
-	modus-themes-completions '((t . (bold)))
-	modus-themes-prompts '(bold))
+        modus-themes-to-rotate modus-themes-items
+        modus-themes-mixed-fonts t
+        modus-themes-variable-pitch-ui t
+        modus-themes-italic-constructs t
+        modus-themes-bold-constructs t
+        modus-themes-completions '((t . (bold)))
+        modus-themes-prompts '(bold))
   (setopt modus-themes-common-palette-overrides
       '((border-mode-line-active unspecified)
-	(border-mode-line-inactive unspecified)
-	(bg-fringe fg-main)
-	(fg-fringe fg-main)))
+        (border-mode-line-inactive unspecified)))
+        ;; (bg-fringe bg-main)
+        ;; (fg-fringe bg-main)))
   )
 
-;; foxglove themes
-(use-package foxglove-themes
+(use-package ef-themes
   :ensure t
   :demand t
-  :vc (:url "https://gitlab.com/vegasharmon/foxglove-themes" :rev :newest)
+  :vc (:url "https://github.com/protesilaos/ef-themes"
+            :rev latest)
   :config
-  (load-theme 'foxglove :no-confirm)
-  (setopt foxglove-themes-blocks 'well)
-  (setopt foxglove-themes-tags nil)
-  (setopt foxglove-themes-heading-styles nil)
-
-    (defun my/foxglove-theme-by-time ()
+  (ef-themes-take-over-modus-themes-mode)
+    (defun my/ef-theme-by-time ()
     (let ((hour (string-to-number (format-time-string "%H"))))
       (if (or (>= hour 17) (< hour 5))
-	  (modus-themes-select 'foxglove-vellum-dark)
-	(modus-themes-select 'foxglove-vellum))))
+          (modus-themes-select 'ef-cyprus)
+        (modus-themes-select 'ef-autumn))))
 
   ;; Set correct theme immediately at startup
-  (my/foxglove-theme-by-time)
+  (my/ef-theme-by-time)
 
   ;; Then schedule future changes
   (run-at-time "17:00" 86400
-	       (lambda ()
-		 (modus-themes-select 'foxglove-vellum-dark)))
+               (lambda ()
+                 (modus-themes-select 'ef-autumn)))
 
   (run-at-time "05:00" 86400
-	       (lambda ()
-		 (modus-themes-select 'foxglove-vellum)))
+               (lambda ()
+                 (modus-themes-select 'ef-cyprus)))
   )
+
+;; makes the firnge same as background
+(defun my-set-face-attributes ()
+  (let ((bg (face-background 'default nil t)))
+    (set-face-attribute 'fringe nil :background bg :foreground bg)
+    (set-face-attribute 'margin nil :background bg)))
+
+(add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
+(add-hook 'after-init-hook #'my-set-face-attributes)
+
+;; ;; Set up the initial frame only if not in daemon mode
+(when (not (daemonp))
+  (my-set-face-attributes))
 
 ;; (use-package doric-themes
 ;;   :ensure t
@@ -2104,14 +2148,14 @@ for html viewing defaults, used in elfeed aswell.
 ;;	    :rev :newest)
 ;;   :demand t
 ;;   :config
-;;   (setq doric-themes-to-toggle '(doric-marble doric-obsidian))
+;;   (setq doric-themes-to-toggle '(doric-tiger doric-magma))
 ;;   (setq doric-themes-to-rotate doric-themes-collection)
 
 ;;   (defun my/doric-theme-by-time ()
 ;;     (let ((hour (string-to-number (format-time-string "%H"))))
 ;;       (if (or (>= hour 17) (< hour 5))
-;;	  (doric-themes-select 'doric-obsidian)
-;;	(doric-themes-select 'doric-marble))))
+;;	  (doric-themes-select 'doric-magma)
+;;	(doric-themes-select 'doric-tiger))))
 
 ;;   ;; Set correct theme immediately at startup
 ;;   (my/doric-theme-by-time)
@@ -2119,67 +2163,12 @@ for html viewing defaults, used in elfeed aswell.
 ;;   ;; Then schedule future changes
 ;;   (run-at-time "17:00" 86400
 ;;	       (lambda ()
-;;		 (doric-themes-select 'doric-obsidian)))
+;;		 (doric-themes-select 'doric-magma)))
 
 ;;   (run-at-time "05:00" 86400
 ;;	       (lambda ()
-;;		 (doric-themes-select 'doric-marble)))
+;;		 (doric-themes-select 'doric-tiger)))
 ;;   )
-
-;; make the headings ligher depends on new compat version
-;; (require 'compat)
-;; (defun my-adjust-org-heading-colors ()
-;;   "Blend org headings toward the current theme background."
-;;   (let* ((bg-hex (face-background 'default nil t))
-;;	 (fg-hex (face-foreground 'org-level-1 nil t)))
-;;     (when (and bg-hex fg-hex)
-;;       (let* ((bg-rgb (color-name-to-rgb bg-hex))
-;;	     (fg-rgb (color-name-to-rgb fg-hex))
-;;	     (levels '((1 . 1)
-;;		       (2 . 0.85)
-;;		       (3 . 0.7)))
-;;	     c3-hex)
-;;	(dolist (item levels)
-;;	  (let* ((n (car item))
-;;		 (alpha (cdr item))
-;;		 (rgb (color-blend fg-rgb bg-rgb alpha))
-;;		 (hex (apply #'color-rgb-to-hex rgb)))
-;;	    (when (= n 3)
-;;	      (setq c3-hex hex))
-;;	    (set-face-foreground (intern (format "org-level-%d" n)) hex)))
-;;	(when c3-hex
-;;	  (dolist (n '(4 5 6 7 8))
-;;	    (set-face-foreground (intern (format "org-level-%d" n)) c3-hex)))))))
-
-;; (add-hook 'doric-themes-after-load-theme-hook #'my-adjust-org-heading-colors)
-;; (defun run-adjust-colors-once ()
-;;   "Run `my-adjust-org-heading-colors' once per session."
-;;   (my-adjust-org-heading-colors)
-;;   (remove-hook 'org-mode-hook #'run-adjust-colors-once))
-
-;; (add-hook 'org-mode-hook #'run-adjust-colors-once)
-
-;; makes the firnge same as background
-;; (defun my-set-face-attributes ()
-;;   (let ((bg (face-background 'default nil t)))
-;;     (set-face-attribute 'fringe nil :background bg :foreground bg)))
-
-;; (add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
-;; (add-hook 'after-init-hook #'my-set-face-attributes)
-
-;; makes the firnge same as background (modus themes)
-;; (defun my-set-face-attributes ()
-;;   (let ((bg (face-background 'default nil t)))
-;;     (set-face-attribute 'fringe nil :background bg :foreground bg)))
-
-;; (add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
-;; (add-hook 'after-init-hook #'my-set-face-attributes)
-
-;; ;; Set up the initial frame only if not in daemon mode
-;; (when (not (daemonp))
-;;   (my-set-face-attributes))
-;; (when (not (daemonp))
-;;   (my-adjust-org-heading-colors))
 #+end_src
 
 ** VC
@@ -2192,8 +2181,8 @@ for html viewing defaults, used in elfeed aswell.
     "Show diff of buffer against file or against VC history."
     (interactive)
     (if-let* ((buffer (current-buffer))
-	      (_ (buffer-modified-p buffer)))
-	(diff-buffer-with-file buffer)
+              (_ (buffer-modified-p buffer)))
+        (diff-buffer-with-file buffer)
       (call-interactively #'vc-diff)))
   (global-set-key (kbd "C-x v =") 'prot/vc-diff-dwin)
   )
@@ -2241,16 +2230,16 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (use-package embark
   :ensure t
   :bind (("C-." . embark-act)
-	 :map minibuffer-local-map
-	 ("C-c C-c" . embark-collect)
-	 ("C-c C-e" . embark-export))
+         :map minibuffer-local-map
+         ("C-c C-c" . embark-collect)
+         ("C-c C-e" . embark-export))
   :config
   (setq embark-prompter 'embark-completing-read-prompter) ;; select actions using minibuffer
   ;; do not show embark buffer only minibuffer
   (setq embark-indicators
       '(embark-minimal-indicator  ; default is embark-mixed-indicator
-	embark-highlight-indicator
-	embark-isearch-highlight-indicator)))
+        embark-highlight-indicator
+        embark-isearch-highlight-indicator)))
 
 ;; The built-in `savehist-mode' saves minibuffer histories.  Vertico
 ;; can then use that information to put recently selected options at
@@ -2275,19 +2264,19 @@ Tells you the key bindings
   :hook (after-init . which-key-mode)
   :init
   (setq ;;which-key-side-window-location 'bottom
-	which-key-sort-order #'which-key-description-order
-	which-key-sort-uppercase-first nil
-	which-key-add-column-padding 1
-	which-key-max-display-columns nil
-	which-key-min-display-lines 6
-	which-key-side-window-max-height 0.25
-	which-key-idle-delay 2
-	which-key-idle-secondary-delay 0
-	which-key-max-description-length 30
-	which-key-min-column-description-width 30
-	which-key-allow-imprecise-window-fit t
-	which-key-separator " > "
-	which-key-show-prefix nil) ;; don't show help stuff.
+        which-key-sort-order #'which-key-description-order
+        which-key-sort-uppercase-first nil
+        which-key-add-column-padding 1
+        which-key-max-display-columns nil
+        which-key-min-display-lines 6
+        which-key-side-window-max-height 0.25
+        which-key-idle-delay 2
+        which-key-idle-secondary-delay 0
+        which-key-max-description-length 30
+        which-key-min-column-description-width 30
+        which-key-allow-imprecise-window-fit t
+        which-key-separator " > "
+        which-key-show-prefix nil) ;; don't show help stuff.
   )
 
 ;; which-key-posframe (load only when which-key is active)
