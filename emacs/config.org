@@ -29,6 +29,10 @@
 
 ;;; this makes the visual line mode wrap according to prefix
 (setq global-visual-wrap-prefix-mode t)
+(setq-default line-prefix nil)
+;; easy to indentify when ther is a wrap.
+(setq-default wrap-prefix
+              (propertize "› " 'face 'shadow))
 (setq help-window-select t) ;; always select the help window
 
 ;;; Better Window Management handling
@@ -43,7 +47,12 @@
 
 ;;; Miscellaneous
 
-(set-language-environment "UTF-8")
+;; causing color emoji to not render
+(set-language-environment "English")
+(prefer-coding-system 'utf-8-dos)
+(set-default-coding-systems 'utf-8-dos)
+(set-terminal-coding-system 'utf-8)
+(set-keyboard-coding-system 'utf-8)
 
 ;; Increase how much is read from processes in a single chunk
 (setq read-process-output-max (* 2 1024 1024))  ; 1024kb
@@ -281,6 +290,7 @@ Enabling Transparency
 
 * TODO (rewrite it in useful segments) init.el
 ** Important things to load first.
+
 *** Adding the scripts directory to path
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;;; -*- lexical-binding: t; -*-
@@ -313,7 +323,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package org
   :ensure t
-  :demand t
   ;; :mode ("\\.org\\'" . org-mode)
   :init
   (unless (package-installed-p 'org)
@@ -334,25 +343,41 @@ TODO: need to make sure that all the org settings are in use-package org block. 
    org-edit-src-content-indentation 0
 
    ;; Org styling
-   org-hide-emphasis-markers nil ;; true
-   org-use-sub-superscripts nil ;; avoid using sub-superscripts
    org-hide-leading-stars nil
    )
+
+   ;; make sure that in org-mode linebreaks are not inside links.
+  (defun my-org-link-nobreak-p ()
+    "Return non-nil if point is inside an Org link."
+    (org-in-regexp org-link-any-re 1))
+
+  ;; (defun my-org-link-nobreak-p ()
+  ;;   "Return non-nil if point is inside an Org link."
+  ;;   (let ((context (org-element-context)))
+  ;;     (eq (org-element-type context) 'link)))
+
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (add-hook 'fill-nobreak-predicate #'my-org-link-nobreak-p nil t)))
 
   ;; org indent mode
   (add-hook 'org-mode-hook #'org-indent-mode)
   (setq org-indent-mode-turns-on-hiding-stars nil)
   (setq org-adapt-indentation nil)
 
+  ;; org speed mode, n and p on org headings move to next
+  ;; visible headings, f and b also move to headings of same level
+  (setq org-use-speed-commands t)
+
   ;; org fold
   (setq org-startup-folded 'nofold)
 
   ;; org capture
   (setq org-capture-templates
-      '(("j" "Journal" entry
-         (file+olp+datetree "journal.org")
-         "* %U\n\n%?"
-         :empty-lines 1)))
+        '(("j" "Journal" entry
+           (file+olp+datetree "journal.org")
+           "* %U\n\n%?"
+           :empty-lines 1)))
 
   ;; org imenu setup
   (setq org-imenu-depth 5) ;; layers of headings in imenu
@@ -370,39 +395,14 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     (interactive)
     (org-timer-set-timer 25)) ;; Start a 25-min timer
 
-  ;; font lock for org-tables, make it more readable
-
-  (defun my-org-table-fontify-outer (limit)
-    (while (re-search-forward "^\\s-*|.*|\\s-*$" limit t)
-      (let ((beg (match-beginning 0))
-            (end (match-end 0)))
-        (save-excursion
-          (goto-char beg)
-          (search-forward "|" end t)
-          (put-text-property (1- (point)) (point)
-                             'face 'default))
-        (save-excursion
-          (goto-char end)
-          (search-backward "|" beg t)
-          (put-text-property (point) (1+ (point))
-                             'face 'default)))
-      t))
-
-  (defun my-org-table-fontify-separator (limit)
-    (while (re-search-forward "^\\s-*|[-+]+|\\s-*$" limit t)
-      (put-text-property (match-beginning 0) (match-end 0)
-                         'face 'default)
-      t))
-
-  (with-eval-after-load 'org
-    (font-lock-add-keywords
-     'org-mode
-     '((my-org-table-fontify-separator)
-       (my-org-table-fontify-outer))
-     'append))
+  ;; make org recognize emphasis markers with "n" newlines.
+  (setcar (nthcdr 4
+                  org-emphasis-regexp-components) 20)
+  (org-set-emph-re 'org-emphasis-regexp-components
+                   org-emphasis-regexp-components)
 
   ;; Hooks
-  (add-hook 'org-mode-hook #'emacs-solo/center-document-mode) ;; center doucment in org.
+  (add-hook 'org-mode-hook #'emacs-solo/center-document-mode)
   (add-hook 'org-mode-hook 'variable-pitch-mode)
 
   ;; Org-agenda setup
@@ -416,13 +416,6 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
   (setq org-agenda-files '("~/org/tasks.org" "~/org/project.org"))
 
-  ;; Org-latex formatting
-  ;; (setq org-format-latex-options
-  ;;	(plist-put
-  ;;	 (plist-put org-format-latex-options :background "Transparent")
-  ;;	 :scale 0.9))
-  (setq org-latex-preview-cache "~/.emacs.d/org-latex/")
-
   ;; Babel
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -430,25 +423,14 @@ TODO: need to make sure that all the org settings are in use-package org block. 
      (emacs-lisp . t)))
 
   (setq org-confirm-babel-evaluate nil)
-
-  ;;; org-hide face
-
-  ;;for modus-themes or ef-themes
-  ;; (defun my/org-hide-face ()
-  ;;   (set-face-attribute 'org-hide nil
-  ;;		      :foreground (modus-themes-get-color-value 'bg-inactive)
-  ;;		      :weight 'light))
-
-  ;; for doric-themes
-  ;; (add-hook 'org-mode-hook
-  ;;	  (lambda ()
-  ;;	    ;; Remap org-hide buffer-locally so it overrides any theme reset
-  ;;	    (face-remap-add-relative 'org-hide :inherit 'internal-border)))
   )
 
 ;; incremental loading
+;; org mode only enables imenu support after imenu is loaded.
+;; so loading it before org, makes evey file have imenu support.
 (defvar my/post-startup-packages
-  '(org
+  '(imenu
+    org
     org-macs
     org-compat
     oc-basic
@@ -483,6 +465,8 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   :after org
   :ensure nil
   :config
+  (setq org-latex-preview-cache "~/.emacs.d/org-latex/")
+
   ;; Increase preview width
   (plist-put org-latex-preview-appearance-options
              :page-width 0.9)
@@ -495,10 +479,11 @@ TODO: need to make sure that all the org settings are in use-package org block. 
   ;; featured than org-fragtog. (Remember to turn off/uninstall org-fragtog.)
   (add-hook 'org-mode-hook 'org-latex-preview-mode)
 
-  ;; ;; Block C-n, C-p etc from opening up previews when using `org-latex-preview-mode'
-  ;; (setq org-latex-preview-mode-ignored-commands
-  ;;       '(next-line previous-line mwheel-scroll
-  ;;         scroll-up-command scroll-down-command))
+  ;; ;; Block C-n, C-p etc from opening up previews when using
+  ;; `org-latex-preview-mode'
+  (setq org-latex-preview-mode-ignored-commands
+        '(next-line previous-line mwheel-scroll
+                    scroll-up-command scroll-down-command))
 
   ;; ;; Enable consistent equation numbering
   ;; (setq org-latex-preview-numbered t)
@@ -513,7 +498,7 @@ TODO: need to make sure that all the org settings are in use-package org block. 
 
 #+end_src
 
-*** Org drill
+*** org drill
 Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode, and Hyperbole:
     Create TODOs in review.org linking to Denote notes.
     Use a custom hook: When a TODO with a REVIEW property is marked DONE, it:
@@ -523,7 +508,56 @@ Use org-drill or Set up spaced repetition in Emacs by combining Denote, Org-mode
     Use Hyperbole to quickly jump to notes via smart file links.
 This gives you spaced repetition with automatic rescheduling and seamless navigation.
 
-*** TODO (is this necessary, something related to it in emacs 31) Org DnD image Advice
+*** org-appear
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org-appear
+  :after org
+  :ensure t
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq-default org-hide-emphasis-markers t)
+  ;; makes the line spacing weird,better not use it.
+  (setq org-use-sub-superscripts nil)
+  ;; (setq org-hidden-keywords '(title author)) ;; don't like it
+  (setq org-pretty-entities t)
+  (setq org-appear-autoemphasis t
+        org-appear-autosubmarkers nil
+        ;; org appear autolinks messes with auto fill mode.
+        org-appear-autolinks nil
+        org-appear-autokeywords nil))
+#+end_src
+
+*** org-capture
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org-capture
+  :ensure nil
+  :config
+  (setq org-capture-templates
+        ;; Random Note template
+      '(("n" ;; key to assign
+         "Random note" ;; title
+         entry ;; type of note
+         (file "~/org/notes.org") ;; file to be added to
+         (function (lambda ()
+                     (string-join
+                      '("* %^{Title}" ;; prompts for the title
+                        ":PROPERTIES:"
+                        ":CREATED: %U" ;; adds a date and time stamp
+                        ":END:"
+                        "%?")  ;; cursor location
+                      "\n")))
+         :prepend t
+         :empty-lines 1)
+        ;; End template
+        )))
+#+end_src
+
+*** TODO  org DnD image Advice
+- Note taken on [2026-11-07 Sat 23:41] \\
+  there was something related to this in emacs 31
+- Note taken on [2026-11-04 Wed 22:25] \\
+  in reddit, there was a update on taking handwritten notes integration.
+  [[https://www.reddit.com/r/emacs/comments/1vponzm/orgdraw_drawing_inside_orgmode_using_tldraw/][org-draw]]
 This is a small code to automatically trim handwritten notes, when adding them.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;;;; Config
@@ -627,7 +661,9 @@ This is a small code to automatically trim handwritten notes, when adding them.
 This is needed currently,
 https://github.com/joaotavora/eglot/issues/523 check if this issue is resolved then you can remove this code.
 
-**** TODO we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer.
+**** TODO org-eidt-scr-special eglot
+- Note taken on [2026-11-07 Sat 23:41] \\
+  we  need to make sure that eglot starts once edit-src-special and does not autoshutdown. and closes when we close the project or in org file kill the org buffer
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; (defvar pratik-org-src-temp-files nil
 ;;   "List of temp files created for org-src + eglot integration.")
@@ -691,13 +727,13 @@ only useful if you are editing tex files.
 *** Defining Variables
 AporeticSerifMonoNerdFont
 Aporetic Serif
-FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. need to check that out sometime later. ok it does not have the glyphs, make sure to patch it later. so that the glyphs work. this font is very good looking.
+FantasqueSansM Nerd Font - dosen't have great unicode support.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq user-full-name "Pratik Mishra"
       user-mail-address "pratikmishra4979@gmail.com")
 (setq user-fixed-pitch-font "FantasqueSansM Nerd Font")
 (setq user-variable-pitch-font "FantasqueSansM Nerd Font Propo")
-(setq user-font-size 15)
+(setq user-font-size 16)
 #+end_src
 
 *** Setting the default-directory
@@ -778,8 +814,8 @@ FantasqueSansM Nerd Font - really great font, but its acting werid in org-mode. 
 (my/leader-set "w r" 'winner-redo "window redo")
 
 ;; insert
-(my/leader-set "i e" 'emoji-insert "character")
-(my/leader-set "i c" 'insert-char "emoji")
+(my/leader-set "i e" 'emoji-insert "emoji")
+(my/leader-set "i c" 'insert-char "character")
 #+end_src
 
 *** Garbage collection reset and threshold increase and file handler reset
@@ -810,7 +846,7 @@ This makes sure the frame is made visible after dashboard is open.
 (add-hook 'emacs-startup-hook (lambda () (set-frame-parameter (selected-frame) 'visibility t)))
 #+end_src
 
-*** Repeat mode and other emacs- settings
+*** Repeat mode and other emacs-settings
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (repeat-mode 1)
 
@@ -851,9 +887,12 @@ This makes sure the frame is made visible after dashboard is open.
          "*Backtrace*")
        'symbols))
 
-;; make emacs input automatic line breaks.
-(setq-default fill-column 80)
-(add-hook 'text-mode-hook #'auto-fill-mode)
+(use-package simple
+  :ensure nil
+  :config
+  (setq-default fill-column 80)
+  (add-hook 'text-mode-hook #'auto-fill-mode)
+  )
 
 ;; refill mode misbehaves in code blocks.
 ;; (add-hook 'text-mode-hook #'refill-mode)
@@ -936,24 +975,28 @@ This makes sure the frame is made visible after dashboard is open.
 #+end_src
 ** Center-Document Mode
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-(defvar emacs-solo-center-document-desired-width 100
+(defvar emacs-solo-center-document-desired-width 95
   "The desired width of a document centered in the window.")
 
-(defun emacs-solo/center-document--adjust-margins ()
-  ;; Reset margins first before recalculating
-  (set-window-parameter nil 'min-margins nil)
-  (set-window-margins nil nil)
+(defun emacs-solo/center-document--adjust-margins (&optional window)
+  "Adjust margins for WINDOW showing the current buffer."
+  (let ((windows (or (and window (list window))
+                     (get-buffer-window-list (current-buffer) nil t))))
+    (dolist (win windows)
+      ;; Reset margins first
+      (set-window-parameter win 'min-margins nil)
+      (set-window-margins win nil nil)
 
-  ;; Adjust margins if the mode is on
-  (when emacs-solo/center-document-mode
-    (let ((margin-width (max 0
-                             (truncate
-                              (/ (- (window-width)
-                                    emacs-solo-center-document-desired-width)
-                                 2.0)))))
-      (when (> margin-width 0)
-        (set-window-parameter nil 'min-margins '(0 . 0))
-        (set-window-margins nil margin-width margin-width)))))
+      ;; Adjust margins if the mode is on
+      (when emacs-solo/center-document-mode
+        (let ((margin-width (max 0
+                                 (truncate
+                                  (/ (- (window-width win)
+                                        emacs-solo-center-document-desired-width)
+                                     2.0)))))
+          (when (> margin-width 0)
+            (set-window-parameter win 'min-margins '(0 . 0))
+            (set-window-margins win margin-width margin-width)))))))
 
 (define-minor-mode emacs-solo/center-document-mode
   "Toggle centered text layout in the current buffer."
@@ -1147,8 +1190,8 @@ The order in this list controls the display order."
   (setq gptel-highlight-methods '(face))
   (setq gptel-display-buffer-action
         '((display-buffer-same-window)))
-  (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "* Prompt: \n")
-  (setf (alist-get 'org-mode gptel-response-prefix-alist) "*Response:* \n")
+  (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "* Prompt :: \n")
+  (setf (alist-get 'org-mode gptel-response-prefix-alist) "- Response :: \n")
 
 
   ;; correct hook usage
@@ -1285,10 +1328,10 @@ The order in this list controls the display order."
         (setq-local gptel-org-branching-context t)
         (setq-local gptel-prompt-prefix-alist
                     (copy-tree gptel-prompt-prefix-alist))
-        (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "*Prompt:* \n")
+        (setf (alist-get 'org-mode gptel-prompt-prefix-alist) "- Prompt ::\n")
         (org-overview)
         (goto-char (point-max))
-        (insert "\n* Prompt: ")
+        (insert "\n* Prompt :: ")
         (goto-char (point-max))
         (insert prompt)))
     (gptel-request prompt
@@ -1395,42 +1438,20 @@ The order in this list controls the display order."
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (with-current-buffer (get-buffer-create "*scratch*")
   (insert
-   (format ";;
-;; ███████╗███╗   ███╗ █████╗  ██████╗███████╗
-;; ██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝
-;; █████╗  ██╔████╔██║███████║██║     ███████╗
-;; ██╔══╝  ██║╚██╔╝██║██╔══██║██║     ╚════██║
-;; ███████╗██║ ╚═╝ ██║██║  ██║╚██████╗███████║
-;; ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
+   (format
+    ";;   ______ __  __          _____  _____
+;;  |  ____|  \\/  |   /\\   / ____|/ ____|
+;;  | |__  | \\  / |  /  \\ | |    | (___
+;;  |  __| | |\\/| | / /\\ \\| |     \\___ \\
+;;  | |____| |  | |/ ____ \\ |____ ____) |
+;;  |______|_|  |_/_/    \\_\\_____|_____/
 ;;
 ;;   Loading time : %s
 ;;   Packages     : %s
 ;;
 "
-           (emacs-init-time)
-           (number-to-string (length package-activated-list)))))
-
-;; (with-current-buffer (get-buffer-create "*scratch*")
-;;   (insert
-;;    (format ";;
-;; ;; ▓█████  ███▄ ▄███▓ ▄▄▄       ▄████▄    ██████
-;; ;; ▓█   ▀ ▓██▒▀█▀ ██▒▒████▄    ▒██▀ ▀█  ▒██    ▒
-;; ;; ▒███   ▓██    ▓██░▒██  ▀█▄  ▒▓█    ▄ ░ ▓██▄
-;; ;; ▒▓█  ▄ ▒██    ▒██ ░██▄▄▄▄██ ▒▓▓▄ ▄██▒  ▒   ██▒
-;; ;; ░▒████▒▒██▒   ░██▒ ▓█   ▓██▒▒ ▓███▀ ░▒██████▒▒
-;; ;; ░░ ▒░ ░░ ▒░   ░  ░ ▒▒   ▓▒█░░ ░▒ ▒  ░▒ ▒▓▒ ▒ ░
-;; ;;  ░ ░  ░░  ░      ░  ▒   ▒▒ ░  ░  ▒   ░ ░▒  ░ ░
-;; ;;    ░   ░      ░     ░   ▒   ░        ░  ░  ░
-;; ;;    ░  ░       ░         ░  ░░ ░            ░
-;; ;;                             ░
-;; ;;
-;; ;;   Loading time : %s
-;; ;;   Packages     : %s
-;; ;;
-;; "
-;;	   (emacs-init-time)
-;;	   (number-to-string (length package-activated-list)))))
-(message (emacs-init-time))
+    (emacs-init-time)
+    (number-to-string (length package-activated-list)))))
 #+end_src
 
 ** Denote
@@ -1615,7 +1636,8 @@ Eglot (built-in client for the language server protocol)
 (add-hook 'org-mode-hook (lambda ()
                            (setq-local electric-pair-inhibit-predicate
                                        `(lambda (c)
-                                          (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+                                          (if (char-equal c ?<) t
+                                            (,electric-pair-inhibit-predicate c))))))
 #+end_src
 
 ** Elfeed
@@ -1776,10 +1798,10 @@ downloaded hunspell
                     :weight 'medium)
 
 ;; fallback if some unicode symbols are missing.
-(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols") nil 'append)
-(set-fontset-font t 'unicode (font-spec :family "Noto Sans Symbols 2") nil 'append)
-(set-fontset-font t 'unicode (font-spec :family "Noto Color Emoji") nil 'append)
-(set-fontset-font t 'unicode (font-spec :family "Unifont") nil 'append)
+(set-fontset-font t 'unicode "symbola" nil 'prepend)
+(set-fontset-font t 'emoji "Segoe UI Emoji" nil 'prepend)
+
+(setq use-default-font-for-symbols nil)
 
 ;; Makes commented text and keywords italics.
 ;; This is working in emacsclient but not emacs.
@@ -1873,6 +1895,9 @@ from karthink https://karthinks.com/software/even-more-batteries-included-with-e
   :config
   (setq imenu-flatten 'prefix) ;; adds annotations and makes the list flat.
   (setq imenu-auto-rescan t) ;; this should solve the issue of it being consistent.
+  ;; make sure imenu works properly in org mode. source org manual.
+  (add-hook 'org-mode-hook (lambda ()
+                             (imenu-add-to-menubar "Imenu")))
   )
 #+end_src
 
@@ -2055,11 +2080,15 @@ for html viewing defaults, used in elfeed aswell.
   (setq shr-use-colors nil)
   ;; if shr use fonts is set to true then emacs respects html fonts
   (setq shr-use-fonts nil)
+  ;; for images to show inline this has to be non-nil
+  (setq shr-max-inline-image-size '(50000 . 50000))
   ;; some images are too big
   (setq shr-max-image-proportion 0.6))
 #+end_src
 
-** Themes
+** TODO Themes
+Make a new theme using #abaaab color as a bg-main. this is from amigo forever
+emulation suite, newsreader [[https://www.youtube.com/watch?v=etj0KUSbYaY&t=238s][its here in this video.]]
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
@@ -2097,10 +2126,10 @@ for html viewing defaults, used in elfeed aswell.
         modus-themes-completions '((t . (bold)))
         modus-themes-prompts '(bold))
   (setopt modus-themes-common-palette-overrides
-      '((border-mode-line-active unspecified)
-        (border-mode-line-inactive unspecified)))
-        ;; (bg-fringe bg-main)
-        ;; (fg-fringe bg-main)))
+          '((border-mode-line-active unspecified)
+            (border-mode-line-inactive unspecified)))
+  ;; (bg-fringe bg-main)
+  ;; (fg-fringe bg-main)))
   )
 
 (use-package ef-themes
@@ -2110,11 +2139,11 @@ for html viewing defaults, used in elfeed aswell.
             :rev latest)
   :config
   (ef-themes-take-over-modus-themes-mode)
-    (defun my/ef-theme-by-time ()
+  (defun my/ef-theme-by-time ()
     (let ((hour (string-to-number (format-time-string "%H"))))
       (if (or (>= hour 17) (< hour 5))
-          (modus-themes-select 'ef-cyprus)
-        (modus-themes-select 'ef-autumn))))
+          (modus-themes-select 'ef-autumn)
+        (modus-themes-select 'ef-cyprus))))
 
   ;; Set correct theme immediately at startup
   (my/ef-theme-by-time)
@@ -2129,46 +2158,39 @@ for html viewing defaults, used in elfeed aswell.
                  (modus-themes-select 'ef-cyprus)))
   )
 
+;; maybe later, i like the themes, especially the dark themes.
+;; (use-package au-themes
+;;   :vc (:url "https://github.com/szymonwilczek/au-themes"
+;;             :rev newest))
+
 ;; makes the firnge same as background
 (defun my-set-face-attributes ()
   (let ((bg (face-background 'default nil t)))
-    (set-face-attribute 'fringe nil :background bg :foreground bg)
-    (set-face-attribute 'margin nil :background bg)))
+    (unless (or (null bg) (string= bg "unspecified-bg"))
+      (set-face-attribute 'fringe nil :background bg :foreground bg)
+      (set-face-attribute 'margin nil :background bg))))
 
-(add-hook 'doric-themes-after-load-theme-hook 'my-set-face-attributes)
-(add-hook 'after-init-hook #'my-set-face-attributes)
+(add-hook 'modus-themes-after-load-theme-hook 'my-set-face-attributes)
 
-;; ;; Set up the initial frame only if not in daemon mode
-(when (not (daemonp))
+;; Set up the initial frame only if not in daemon mode
+(if (daemonp)
+    (add-hook 'after-make-frame-functions #'my-set-face-attributes)
   (my-set-face-attributes))
+#+end_src
 
-;; (use-package doric-themes
-;;   :ensure t
-;;   :vc (:url "https://github.com/protesilaos/doric-themes"
-;;	    :rev :newest)
-;;   :demand t
-;;   :config
-;;   (setq doric-themes-to-toggle '(doric-tiger doric-magma))
-;;   (setq doric-themes-to-rotate doric-themes-collection)
+#+RESULTS:
 
-;;   (defun my/doric-theme-by-time ()
-;;     (let ((hour (string-to-number (format-time-string "%H"))))
-;;       (if (or (>= hour 17) (< hour 5))
-;;	  (doric-themes-select 'doric-magma)
-;;	(doric-themes-select 'doric-tiger))))
-
-;;   ;; Set correct theme immediately at startup
-;;   (my/doric-theme-by-time)
-
-;;   ;; Then schedule future changes
-;;   (run-at-time "17:00" 86400
-;;	       (lambda ()
-;;		 (doric-themes-select 'doric-magma)))
-
-;;   (run-at-time "05:00" 86400
-;;	       (lambda ()
-;;		 (doric-themes-select 'doric-tiger)))
-;;   )
+** Ukagaka
+added two custom variables, and change a unicode error.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package ukagaka
+  :vc (:url "https://codeberg.org/Pratik-Mishra-4979/ukagaka.el.git"
+            :branch "main"
+            :rev :newest)
+  :ensure t
+  :demand t
+  :config
+  )
 #+end_src
 
 ** VC
@@ -2192,7 +2214,12 @@ for html viewing defaults, used in elfeed aswell.
 The following settings are simple modes that are enabled (or disabled) so that Emacs functions more like you would expect a proper editor/IDE to function.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (pixel-scroll-precision-mode 1) ;; smooth scrolling
-(delete-selection-mode 1)    ;; You can select text and delete it by typing.
+
+;; you can select text and delete it by typing.
+;; but by doing so, if you are using electric pair mode,
+;; you can't wrap selection with a pair of characters.
+(delete-selection-mode 1)
+
 (global-auto-revert-mode t)  ;; Automatically show changes if the file has changed
 (defalias 'yes-or-no-p 'y-or-n-p) ;; y and n instead of yes or no.
 (setq ring-bell-function 'ignore)
@@ -2262,29 +2289,19 @@ Tells you the key bindings
 (use-package which-key
   :ensure nil
   :hook (after-init . which-key-mode)
-  :init
-  (setq ;;which-key-side-window-location 'bottom
+  :config
+  (setq which-key-popup-type 'side-window
+        which-key-side-window-location 'right
         which-key-sort-order #'which-key-description-order
         which-key-sort-uppercase-first nil
         which-key-add-column-padding 1
-        which-key-max-display-columns nil
-        which-key-min-display-lines 6
         which-key-side-window-max-height 0.25
         which-key-idle-delay 2
         which-key-idle-secondary-delay 0
-        which-key-max-description-length 30
+        which-key-max-description-length 40
         which-key-min-column-description-width 30
         which-key-allow-imprecise-window-fit t
-        which-key-separator " > "
-        which-key-show-prefix nil) ;; don't show help stuff.
-  )
-
-;; which-key-posframe (load only when which-key is active)
-(use-package which-key-posframe
-  :ensure t
-  :after which-key
-  :hook (which-key-mode . which-key-posframe-mode)
-  :config
+        )
   )
 #+END_src
 
@@ -2308,29 +2325,33 @@ This already works out of the box.
  "M-," . xref-pop-marker-stack  ;; Go back
  "M-?" . xref-find-references   ;; Find References
 
-** YaSnippet
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
-;; (use-package yasnippet
-;;   :ensure t
-;;   :after org
-;;   :init
-;;   (yas-global-mode 1)
-;;   :config
-;;   (setq yas-triggers-in-field t)
+** TODO YaSnippet
+- Note taken on [2026-11-09 Mon 02:29] \\
+  add cape for yasnippet.
+#+begin_src emacs-lisp :notangle "~/.emacs.d/init.el"
+(use-package yasnippet
+  :ensure t
+  :after org
+  :init
+  (yas-global-mode 1)
+  :config
+  (setq yas-triggers-in-field t)
 
-;;   (defun my/org-enable-latex-snippets ()
-;;     (yas-activate-extra-mode 'latex-mode))
+  ;; causing some error, check later
+  ;; (defun my/org-enable-latex-snippets ()
+  ;;   (yas-activate-extra-mode 'latex-mode))
 
-;;   (add-hook 'org-mode-hook #'my/org-enable-latex-snippets))
-;;   ;; force latex snippets in org
-;;   (add-hook 'org-mode-hook
-;;	    (lambda ()
-;;	      (yas-minor-mode 1)
-;;	      (yas-activate-extra-mode 'latex-mode)))
+  ;; (add-hook 'org-mode-hook #'my/org-enable-latex-snippets)
+  ;; ;; force latex snippets in org
+  ;; (add-hook 'org-mode-hook
+  ;;           (lambda ()
+  ;;             (yas-minor-mode 1)
+  ;;             (yas-activate-extra-mode 'latex-mode)))
+  )
 
-;; (use-package yasnippet-snippets
-;;   :ensure t
-;;   :after yasnippet)
+(use-package yasnippet-snippets
+  :ensure t
+  :after yasnippet)
 #+end_src
 
 ** Zooming In/Out
@@ -2357,6 +2378,8 @@ pop to mark command is linked to "C-u C-spc". it enables us to cycle through our
 in buffers with q as bury the buffer "C-u q" kill the buffer.
 
 In windows, with changing the high dpi override to be managed by appliation, emacs starts a lot faster.
+
+org-emphasize is an important thing.
 
 # Local Variables:
 # eval: (highlight-until-save-mode 1)
