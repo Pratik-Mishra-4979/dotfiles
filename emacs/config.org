@@ -308,7 +308,7 @@ Enabling Transparency
                                    ("nongnu" . 80)
                                    ("melpa"  . 70)
                                    ("melpa-stable" . 50)))
-(setq package-install-upgrade-built-in t)
+(setq package-install-upgrade-built-in nil)
 
 ;; This results in a more compact output that emphasizes performance
 (setq use-package-expand-minimally t)
@@ -884,7 +884,9 @@ This makes sure the frame is made visible after dashboard is open.
          "*org preview convert output*"
          "*org preview latex output*"
          "*Async-nativ-compile-log*"
-         "*Backtrace*")
+         "*Backtrace*"
+         "*Calculator*"
+         "*Ibuffer*")
        'symbols))
 
 (use-package simple
@@ -1529,6 +1531,23 @@ The order in this list controls the display order."
 ;;(setq vertico-preselect 'prompt)
 #+end_src
 
+** TODO Dictionary
+- Note taken on [2026-11-13 Fri 01:07] \\
+  install english-hindi font and vice-versa.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package quick-sdcv
+  :ensure t
+  :bind (("C-c d a" . quick-sdcv-search-at-point)
+         ("C-c d s" . quick-sdcv-search-input))
+  :custom
+  (quick-sdcv-program "C:/msys64/ucrt64/bin/sdcv.exe")
+  (quick-sdcv-dictionary-data-dir "~/stardict/")
+  (quick-sdcv-dictionary-prefix-symbol nil)
+  (quick-sdcv-hist-size 100)
+  (quick-sdcv-fold-on-search t)
+  )
+#+end_src
+
 ** Dired
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package dired
@@ -1750,24 +1769,42 @@ some errors are showing maybe .elc is corrupted.
 ** Flyspell
 downloaded hunspell
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+;; (use-package ispell
+;;   :ensure nil
+;;   :config
+;;   (setq ispell-dictionary "en_US")
+;;   (setq ispell-quietly t)
+;;   (setq flyspell-issue-welcome-flag nil)
+;;   (setq flyspell-issue-message-flag nil)
+;;   (setq ispell-local-dictionary "en_US")
+;;   (setq ispell-extra-args '("-d" "en_US"))
+;;   (setq ispell-local-dictionary-alist
+;;         '(("en_US" "[A-Za-z]" "[^A-Za-z]" "[']" nil nil nil utf-8)))
+;;   (setq ispell-hunspell-dictionary-alist
+;;         '(("en_US"
+;;            "~/hunspell/en_US.aff"
+;;            "~/hunspell/en_US.dic"
+;;            "~/hunspell/.hunspell_en_US"
+;;            nil nil nil "utf-8")))
+;;   )
+
 (use-package ispell
   :ensure nil
+  :init
+  ;; Point to the UCRT64 dictionary folder installed by pacman
+  (setenv "DICPATH" "C:/msys64/ucrt64/share/hunspell")
+
   :config
-  (setq-default ispell-program-name "~/hunspell/hunspell.exe")
-  (setq ispell-dictionary "en_US")
-  (setq ispell-quietly t)
-  (setq flyspell-issue-welcome-flag nil)
-  (setq flyspell-issue-message-flag nil)
-  (setq ispell-local-dictionary "en_US")
-  (setq ispell-extra-args '("-d" "en_US"))
+  (setq ispell-program-name "C:/msys64/ucrt64/bin/hunspell.exe")
+  (setq ispell-dictionary "en_US-large")
+  (setq ispell-local-dictionary "en_US-large")
+  (setq ispell-extra-args '("-d" "en_US-large" "-i" "utf-8"))
   (setq ispell-local-dictionary-alist
-        '(("en_US" "[A-Za-z]" "[^A-Za-z]" "[']" nil nil nil utf-8)))
-  (setq ispell-hunspell-dictionary-alist
-        '(("en_US"
-           "~/hunspell/en_US.aff"
-           "~/hunspell/en_US.dic"
-           "~/hunspell/.hunspell_en_US"
-           nil nil nil "utf-8"))))
+        '(("en_US-large" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_US-large") nil utf-8)))
+
+  ;; Keep your personal dictionary in your home folder
+  (setq ispell-personal-dictionary (expand-file-name "~/.hunspell_en_US-large"))
+  (setq ispell-quietly t))
 
 (use-package flyspell
   :ensure nil
@@ -1777,7 +1814,10 @@ downloaded hunspell
    ("<mouse-3>" . flyspell-correct-word)
    ("<mouse-2>" . nil))
   :init
-  (which-key-add-key-based-replacements "C-c s" "Spell Check"))
+  (which-key-add-key-based-replacements "C-c s" "Spell Check")
+  :config
+  (setq flyspell-issue-welcome-flag nil)
+  (setq flyspell-issue-message-flag nil))
 #+end_src
 
 ** Font
@@ -1916,6 +1956,20 @@ from karthink https://karthinks.com/software/even-more-batteries-included-with-e
   (setq lazy-count-suffix-format nil))
 #+end_src
 
+** Logos focus mode
+best use is that it can keep buffer narrowed while moving between pages or
+outline nodes. also other focus mode features which can be explored later.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package logos
+  :ensure t
+  :custom
+  (logos-outlines-are-pages t)
+  :bind (("C-x n n" . logos-narrow-dwim)
+         ([remap forward-page] . logos-forward-page-dwim)
+         ([remap backward-page] . logos-backward-page-dwim)
+         ("<f9>" . logos-focus-mode)))
+#+end_src
+
 ** TODO (is it necessary ?) Modeline
 This is the current modeline setup slowly build it up using the funcitons in pratik-modeline.el.
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
@@ -1965,6 +2019,16 @@ This is the current modeline setup slowly build it up using the funcitons in pra
     (keymap-set org-mode-map "M-o n" org-node-org-prefix-map))
   :config
   (org-node-cache-mode))
+#+end_src
+
+** Outline Mode
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package outline
+  :ensure nil
+  :hook (prog-mode . outline-minor-mode)
+  :custom
+  (outline-minor-mode-cycle t)
+  (outline-minor-mode-prefix "\C-c\C-o"))
 #+end_src
 
 ** Proced
@@ -2240,22 +2304,27 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (setq vertico-flat-annotate t) ;; show annotations i.e shortcuts.
   ;;minibuffer setting to stop showing default's as unobtrusive mode already shows it
   (setq minibuffer-default-prompt-format "")
+  (setq enable-recursive-minibuffers t)
   (setq scroll-conservatively 1000) ;; makes it scroll slowly
   (setq scroll-margin 3) ;; scrolls only if i go below last 3 lines, 3 so that the minibuffer resize does not automatically scroll
   (setq vertico-resize 'fixed) ;; makes it windows scroll less
+  (setq vertico-multiform-commands
+      '((embark-prefix-help-command grid (:not unobtrusive))
+        (embark-act grid (:not unobtrusive))))
+  (vertico-multiform-mode)
   )
 
 ;;; COMPLETION
-;; The `orderless' package lets the minibuffer use an out-of-order
-;; pattern matching algorithm.
 (use-package orderless
   :ensure t
   :init
-  (setq completion-styles '(orderless flex basic)))
+  (setq completion-styles '(orderless basic substring initials partial-completion flex))
+  )
 
 ;; added it back as emabark is useful when we want to perform actions on the file.
 (use-package embark
   :ensure t
+  :commands (embark-act embark-prefix-help-command)
   :bind (("C-." . embark-act)
          :map minibuffer-local-map
          ("C-c C-c" . embark-collect)
@@ -2264,10 +2333,13 @@ The following settings are simple modes that are enabled (or disabled) so that E
   (setq embark-prompter 'embark-completing-read-prompter) ;; select actions using minibuffer
   ;; do not show embark buffer only minibuffer
   (setq embark-indicators
-      '(embark-minimal-indicator  ; default is embark-mixed-indicator
+      '(embark-minimal-indicator  ;; default is embark-mixed-indicator
         embark-highlight-indicator
-        embark-isearch-highlight-indicator)))
+        embark-isearch-highlight-indicator))
+  (setq embark-keymap-prompter-key ".")
+  )
 
+(setq prefix-help-command #'embark-prefix-help-command)
 ;; The built-in `savehist-mode' saves minibuffer histories.  Vertico
 ;; can then use that information to put recently selected options at
 ;; the top.
@@ -2283,8 +2355,11 @@ The following settings are simple modes that are enabled (or disabled) so that E
 #+end_src
 
 ** Which Key
+- Note taken on [2026-11-12 Thu 19:05] \\
+  currently trying embark help command as an alternative. that is better than this
+  popup which is useless as its very hard to parse.
 Tells you the key bindings
-#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+#+begin_src emacs-lisp :notangle "~/.emacs.d/init.el"
 ;; which-key
 (use-package which-key
   :ensure nil
@@ -2296,11 +2371,12 @@ Tells you the key bindings
         which-key-sort-uppercase-first nil
         which-key-add-column-padding 1
         which-key-side-window-max-height 0.25
-        which-key-idle-delay 2
-        which-key-idle-secondary-delay 0
+        which-key-idle-delay 1.5
+        which-key-idle-secondary-delay 0.25
         which-key-max-description-length 40
         which-key-min-column-description-width 30
         which-key-allow-imprecise-window-fit t
+        which-key-preserve-window-configuration t
         )
   )
 #+END_src
