@@ -445,7 +445,11 @@ TODO: need to make sure that all the org settings are in use-package org block. 
     org-agenda
     org-capture
     org-tempo
-    ready-player)
+    ready-player
+    corfu
+    yasnippet
+    yasnippet-snippets
+    completion-preview)
   "Packages to load incrementally after startup.")
 
 (defun my/load-packages-incrementally ()
@@ -1389,7 +1393,7 @@ The order in this list controls the display order."
 ;;                   (my/gptel-windows-on-frame))))
 #+end_src
 
-** Corfu
+** Corfu + Cape Setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package corfu
   :ensure t
@@ -1412,17 +1416,32 @@ The order in this list controls the display order."
   (corfu-max-width 200)
   (corfu-scroll-margin 0)
   (corfu-min-width 50)
-  (global-corfu-mode 1) ;; needed by supertag
   :bind
   (:map corfu-map
         ("RET" . corfu-send)    ; RET for selection
         ("C-n" . corfu-next)      ; Move down the completions list
-        ("C-p" . corfu-previous))) ; Move up the completions list
+        ("C-p" . corfu-previous))
+  :config
+  (global-corfu-mode)) ; Move up the completions list
 
+(use-package completion-preview
+  :ensure nil
+  :config
+  (define-key completion-preview-active-mode-map (kbd "M-n") #'completion-preview-next-candidate)
+  (define-key completion-preview-active-mode-map (kbd "M-p") #'completion-preview-prev-candidate)
+  (global-completion-preview-mode +1)
+  ;;TODO coompletion preview mode messes with input fucniton in the repl this is a bug make a report on it.
+  (add-hook 'comint-mode-hook (lambda () (completion-preview-mode -1)))
+  )
 
-(global-completion-preview-mode 1) ;; enables ghost text completion.
-;;TODO coompletion preview mode messes with input fucniton in the repl this is a bug make a report on it.
-(add-hook 'comint-mode-hook (lambda () (completion-preview-mode -1)))
+(use-package cape
+  :ensure t
+  :bind (("C-c p" . cape-prefix-map)
+         ("C-c p p" . my/cape-super))
+  :config
+  (setq cape-dict-file "C:/msys64/usr/share/dict/words")
+  (defalias 'my/cape-super
+    (cape-capf-interactive (cape-capf-super #'cape-dabbrev #'cape-dict #'cape-emoji))))
 #+end_src
 
 ** Cursors
@@ -1793,7 +1812,6 @@ downloaded hunspell
   :init
   ;; Point to the UCRT64 dictionary folder installed by pacman
   (setenv "DICPATH" "C:/msys64/ucrt64/share/hunspell")
-
   :config
   (setq ispell-program-name "C:/msys64/ucrt64/bin/hunspell.exe")
   (setq ispell-dictionary "en_US-large")
@@ -1840,7 +1858,6 @@ downloaded hunspell
 ;; fallback if some unicode symbols are missing.
 (set-fontset-font t 'unicode "symbola" nil 'prepend)
 (set-fontset-font t 'emoji "Segoe UI Emoji" nil 'prepend)
-
 (setq use-default-font-for-symbols nil)
 
 ;; Makes commented text and keywords italics.
@@ -1879,6 +1896,7 @@ setenv makes it so that sub processes can also see the path.
                "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI"
                "C:/Users/PRATIK/AppData/Local/Programs/Xournal++/bin"
                "C:/msys64/ucrt64/bin"
+               "C:/msys64/usr/bin" ;; for grep to use msys one
                ))
   (my/add-to-path dir))
 #+end_src
@@ -2000,6 +2018,17 @@ This is the current modeline setup slowly build it up using the funcitons in pra
           pratik-modeline-misc-info
           mode-line-end-spaces
           " ")))
+#+end_src
+
+** org-draw
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package org-draw
+  :ensure t
+  :commands (org-draw org-draw-edit org-draw-setup)
+  :config
+  (setq org-draw-figure-background 'white)
+  ;; what would be a good pixel width ??
+  (setq org-draw-insert-attr-width nil))
 #+end_src
 
 ** org-node
@@ -2150,9 +2179,7 @@ for html viewing defaults, used in elfeed aswell.
   (setq shr-max-image-proportion 0.6))
 #+end_src
 
-** TODO Themes
-Make a new theme using #abaaab color as a bg-main. this is from amigo forever
-emulation suite, newsreader [[https://www.youtube.com/watch?v=etj0KUSbYaY&t=238s][its here in this video.]]
+** Themes
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (setq custom-safe-themes t) ;; all installed themes are safe
 (setq custom-enabled-themes nil)
@@ -2189,6 +2216,16 @@ emulation suite, newsreader [[https://www.youtube.com/watch?v=etj0KUSbYaY&t=238s
         modus-themes-bold-constructs t
         modus-themes-completions '((t . (bold)))
         modus-themes-prompts '(bold))
+
+  ;; makes headings have a bigger height, 1.05 is also an option.
+  (add-hook 'modus-themes-after-load-theme-hook
+          (lambda ()
+            (mapc (lambda (n)
+                    (set-face-attribute
+                     (intern (format "modus-themes-heading-%d" n))
+                     nil :height 1.1))
+                  (number-sequence 0 8))))
+
   (setopt modus-themes-common-palette-overrides
           '((border-mode-line-active unspecified)
             (border-mode-line-inactive unspecified)))
@@ -2257,6 +2294,19 @@ added two custom variables, and change a unicode error.
   )
 #+end_src
 
+** Ultra-Scroll
+Ultra-scroll mode is better than pixel scroll precision mode. latter gets stuck
+and works choppily on windows.
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
+(use-package ultra-scroll
+  :ensure t
+  :init
+  (setq scroll-conservatively 1000) ;; makes it scroll slowly
+  (setq scroll-margin 3) ;; scrolls only if i go below last 3 lines, 3 so that the minibuffer resize does not automatically scroll
+  :config
+  (ultra-scroll-mode 1))
+#+end_src
+
 ** VC
 #+begin_src emacs-lisp "~/.emacs.d/init.el"
 (use-package vc
@@ -2291,7 +2341,7 @@ The following settings are simple modes that are enabled (or disabled) so that E
 (mouse-avoidance-mode 'banish) ;; banish the mouse lol.
 #+end_src
 
-** TODO (remove vertico and use fido-mode) Vertico + orderless + embark setup
+** Vertico + orderless + embark setup
 #+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 ;; The `vertico' package applies a vertical layout to the minibuffer.
 (use-package vertico
@@ -2305,8 +2355,6 @@ The following settings are simple modes that are enabled (or disabled) so that E
   ;;minibuffer setting to stop showing default's as unobtrusive mode already shows it
   (setq minibuffer-default-prompt-format "")
   (setq enable-recursive-minibuffers t)
-  (setq scroll-conservatively 1000) ;; makes it scroll slowly
-  (setq scroll-margin 3) ;; scrolls only if i go below last 3 lines, 3 so that the minibuffer resize does not automatically scroll
   (setq vertico-resize 'fixed) ;; makes it windows scroll less
   (setq vertico-multiform-commands
       '((embark-prefix-help-command grid (:not unobtrusive))
@@ -2401,33 +2449,28 @@ This already works out of the box.
  "M-," . xref-pop-marker-stack  ;; Go back
  "M-?" . xref-find-references   ;; Find References
 
-** TODO YaSnippet
-- Note taken on [2026-11-09 Mon 02:29] \\
-  add cape for yasnippet.
-#+begin_src emacs-lisp :notangle "~/.emacs.d/init.el"
+** YaSnippet
+#+begin_src emacs-lisp :tangle "~/.emacs.d/init.el"
 (use-package yasnippet
   :ensure t
   :after org
-  :init
-  (yas-global-mode 1)
   :config
   (setq yas-triggers-in-field t)
-
-  ;; causing some error, check later
-  ;; (defun my/org-enable-latex-snippets ()
-  ;;   (yas-activate-extra-mode 'latex-mode))
-
-  ;; (add-hook 'org-mode-hook #'my/org-enable-latex-snippets)
-  ;; ;; force latex snippets in org
-  ;; (add-hook 'org-mode-hook
-  ;;           (lambda ()
-  ;;             (yas-minor-mode 1)
-  ;;             (yas-activate-extra-mode 'latex-mode)))
+  (yas-global-mode +1)
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (yas-activate-extra-mode 'latex-mode)))
   )
 
 (use-package yasnippet-snippets
   :ensure t
-  :after yasnippet)
+  :config
+ )
+
+(use-package yasnippet-capf
+  :ensure t
+  :after cape
+  :bind ("C-c p y" . yasnippet-capf))
 #+end_src
 
 ** Zooming In/Out
@@ -2454,8 +2497,11 @@ pop to mark command is linked to "C-u C-spc". it enables us to cycle through our
 in buffers with q as bury the buffer "C-u q" kill the buffer.
 
 In windows, with changing the high dpi override to be managed by appliation, emacs starts a lot faster.
-
+org-emphasize
 org-emphasize is an important thing.
+M-/ is inbuilt dabbrev, so big words or things in the buffer you have once typed
+can be filled automatically.
+
 
 # Local Variables:
 # eval: (highlight-until-save-mode 1)
